@@ -1,0 +1,17 @@
+{
+  "manifest_version": 3,
+  "name": "UG TV Mode",
+  "version": "1.0",
+  "description": "Mode TV pour Ultimate Guitar",
+  "permissions": ["activeTab"],
+  "action": {},
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://*.ultimate-guitar.com/*"],
+      "js": ["content.js"]
+    }
+  ]
+}
