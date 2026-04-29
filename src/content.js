@@ -177,6 +177,8 @@
 
             .ug-tv-close-list { background: #333; color: ${TXT_WHITE}; border: none; padding: 12px 25px; border-radius: 20px; cursor: pointer; font-weight: bold; outline: none; transition: background 0.2s; font-size: 1.1em;}
             .ug-tv-close-list.ug-tv-focused, .ug-tv-close-list:hover { background: #444; box-shadow: 0 0 0 3px ${UG_YELLOW};}
+            .ug-tv-favorites-list { background: ${UG_YELLOW}; color: ${BG_DARK}; border: none; padding: 12px 25px; border-radius: 20px; cursor: pointer; font-weight: bold; outline: none; transition: background 0.2s; font-size: 1.1em;}
+            .ug-tv-favorites-list.ug-tv-focused, .ug-tv-favorites-list:hover { background: ${UG_YELLOW_DARK}; box-shadow: 0 0 0 3px ${UG_YELLOW};}
 
             .ug-tv-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; padding-bottom: 50px;}
             .ug-tv-card {
@@ -218,18 +220,23 @@
 
     let isListTVMode = false;
     let cards = [];
-    let currentIndex = -2; // -2 = Recherche, -1 = Bouton Quitter, 0+ = Cartes
+    let currentIndex = -3; // -3 = Recherche, -2 = Favoris, -1 = Bouton Quitter, 0+ = Cartes
     let listKeydownHandler = null;
 
     function updateListFocus() {
       cards.forEach((c) => c.classList.remove("ug-tv-focused"));
       overlay.querySelector(".ug-tv-close-list").classList.remove("ug-tv-focused");
+      const favBtn = document.getElementById("ug-tv-favorites-btn");
+      if (favBtn) favBtn.classList.remove("ug-tv-focused");
       const searchInput = document.getElementById("ug-tv-search");
       if (searchInput) searchInput.classList.remove("ug-tv-focused");
 
-      if (currentIndex === -2 && searchInput) {
+      if (currentIndex === -3 && searchInput) {
         searchInput.classList.add("ug-tv-focused");
         searchInput.focus();
+      } else if (currentIndex === -2 && favBtn) {
+        if (searchInput) searchInput.blur();
+        favBtn.classList.add("ug-tv-focused");
       } else if (currentIndex === -1) {
         overlay.querySelector(".ug-tv-close-list").classList.add("ug-tv-focused");
         if (searchInput) searchInput.blur();
@@ -354,6 +361,7 @@
                     <h1>${UG_LOGO_SVG_SMALL} ${titleText}</h1>
                     <div class="ug-tv-header-controls">
                         <input type="text" id="ug-tv-search" placeholder="Rechercher (ex: Goldman)..." autocomplete="off" />
+                        <button class="ug-tv-favorites-list" id="ug-tv-favorites-btn">Mes Favoris</button>
                         <button class="ug-tv-close-list">Quitter TV</button>
                     </div>
                 </div>
@@ -379,13 +387,22 @@
 
       cards = Array.from(overlay.querySelectorAll(".ug-tv-card"));
 
-      currentIndex = cards.length > 0 ? 0 : -2;
+      currentIndex = cards.length > 0 ? 0 : -3;
       updateListFocus();
 
       const searchInput = document.getElementById("ug-tv-search");
       searchInput.addEventListener("click", () => {
+        currentIndex = -3;
+        updateListFocus();
+      });
+      const favBtn = document.getElementById("ug-tv-favorites-btn");
+      favBtn.addEventListener("mouseenter", () => {
         currentIndex = -2;
         updateListFocus();
+      });
+      favBtn.addEventListener("click", () => {
+        showLoader();
+        window.location.href = "https://www.ultimate-guitar.com/user/mytabs";
       });
       overlay.querySelector(".ug-tv-close-list").addEventListener("mouseenter", () => {
         currentIndex = -1;
@@ -435,7 +452,7 @@
           }
           if (e.key === "ArrowRight" && searchInput.selectionStart === searchInput.value.length) {
             e.preventDefault();
-            currentIndex = -1;
+            currentIndex = -2;
             updateListFocus();
             return;
           }
@@ -454,22 +471,24 @@
         }
 
         if (e.key === "ArrowRight") {
-          if (currentIndex === -2) currentIndex = -1;
-          else if (currentIndex === -1) currentIndex = cards.length > 0 ? 0 : -2;
+          if (currentIndex === -3) currentIndex = -2;
+          else if (currentIndex === -2) currentIndex = -1;
+          else if (currentIndex === -1) currentIndex = cards.length > 0 ? 0 : -3;
           else currentIndex = Math.min(currentIndex + 1, cards.length - 1);
         }
         if (e.key === "ArrowLeft") {
-          if (currentIndex === -1) currentIndex = -2;
-          else if (currentIndex === -2) currentIndex = -2;
-          else if (currentIndex % cols === 0) currentIndex = -2;
+          if (currentIndex === -2) currentIndex = -3;
+          else if (currentIndex === -1) currentIndex = -2;
+          else if (currentIndex === -3) currentIndex = -3;
+          else if (currentIndex % cols === 0) currentIndex = -3;
           else currentIndex = Math.max(currentIndex - 1, 0);
         }
         if (e.key === "ArrowDown") {
-          if (currentIndex === -1 || currentIndex === -2) currentIndex = cards.length > 0 ? 0 : currentIndex;
+          if (currentIndex === -1 || currentIndex === -2 || currentIndex === -3) currentIndex = cards.length > 0 ? 0 : currentIndex;
           else currentIndex = Math.min(currentIndex + cols, cards.length - 1);
         }
         if (e.key === "ArrowUp") {
-          if (currentIndex < cols && currentIndex >= 0) currentIndex = -2;
+          if (currentIndex < cols && currentIndex >= 0) currentIndex = -3;
           else if (currentIndex >= 0) currentIndex = Math.max(currentIndex - cols, 0);
         }
 
@@ -477,6 +496,8 @@
           if (currentIndex === -1) {
             closeListMode();
           } else if (currentIndex === -2) {
+            favBtn.click();
+          } else if (currentIndex === -3) {
             searchInput.focus();
           } else if (cards[currentIndex]) {
             const url = cards[currentIndex].getAttribute("data-href");
@@ -864,7 +885,7 @@
         let safety = 100;
         while (
           (preEl.scrollWidth > preEl.clientWidth || preEl.scrollHeight > preEl.clientHeight) &&
-          currentFont > 8 &&
+          currentFont > 3 &&
           safety > 0
         ) {
           currentFont -= 0.5;
@@ -945,7 +966,7 @@
       applyStyles();
     });
     document.getElementById("ug-font-minus").addEventListener("click", () => {
-      currentFont = Math.max(8, currentFont - 0.5);
+      currentFont = Math.max(3, currentFont - 0.5);
       applyStyles();
     });
     document.getElementById("ug-col-plus").addEventListener("click", () => {
