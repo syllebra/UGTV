@@ -18,7 +18,7 @@
   // Clés de stockage
   const GLOBAL_TV_KEY = "ug_tv_global_state";
   const LOADING_TAB_NAME_KEY = "ug_tv_loading_tab_name";
-  let isGlobalTVModeOn = true; //localStorage.getItem(GLOBAL_TV_KEY) === "true";
+  let isGlobalTVModeOn = true;
 
   // =========================================================
   // GESTION DU LOADER FULLSCREEN PERSONNALISÉ
@@ -112,12 +112,9 @@
       metaViewport.name = "viewport";
       document.head.appendChild(metaViewport);
     }
-    // Force la largeur à celle de l'écran, et bloque totalement le zoom
     metaViewport.content =
       "width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no";
   }
-
-  // N'oubliez pas d'appeler lockViewport() dans activateTabTV() et activateListTV() !
 
   function route() {
     cleanUpEverything();
@@ -666,15 +663,12 @@
 
     const preEl = document.querySelector("pre") || document.querySelector("code");
 
-    // --- NOUVELLE LOGIQUE DE DÉTECTION DU PANNEAU D'ACCORDS ---
     let asideEl = document.querySelector("aside");
 
     if (!asideEl) {
-      // Approche 1: Chercher via les attributs data-key des onglets d'instruments
       let instTab = document.querySelector('[data-key="guitar"], [data-key="ukulele"], [data-key="piano"]');
       if (instTab) {
         asideEl = instTab.closest("section, aside, div");
-        // S'assurer qu'on remonte assez haut pour prendre toute la boite
         if (asideEl && !asideEl.querySelector("canvas")) {
           asideEl = instTab.parentElement.parentElement.parentElement.parentElement;
         }
@@ -682,14 +676,12 @@
     }
 
     if (!asideEl) {
-      // Approche 2: Chercher via le titre "Accords" ou "Chords"
       const headings = Array.from(document.querySelectorAll("h2, h3, span, div")).filter((el) => {
         const txt = (el.textContent || "").trim().toLowerCase();
         return txt === "accords" || txt === "chords";
       });
       for (let h of headings) {
         let parent = h.closest("section, aside, div");
-        // On s'assure que cette section contient bien des diagrammes (canvas ou svg)
         if (parent && parent.querySelector("canvas, svg")) {
           asideEl = parent;
           break;
@@ -775,12 +767,18 @@
     const style = document.createElement("style");
     style.className = "ug-tv-style";
     style.innerHTML = `
-            :root { --tv-bg: ${TXT_WHITE}; --tv-bg-alt: #f4f5f6; --tv-txt: ${BG_DARK}; --tv-accent: ${UG_YELLOW}; --tv-aside-w: 420px; }
+            :root { 
+                --tv-bg: ${TXT_WHITE}; 
+                --tv-bg-alt: #f4f5f6; 
+                --tv-txt: ${BG_DARK}; 
+                --tv-accent: ${UG_YELLOW}; 
+                --tv-aside-w: 300px; /* L'espace visuel final souhaité à l'écran */
+            }
             body.ug-tv-active, body.ug-tv-active *,
             body.ug-tv-list-active, body.ug-tv-list-active * {
                 -webkit-text-size-adjust: 100% !important;
                 text-size-adjust: 100% !important;
-                touch-action: pan-y !important; /* Autorise le scroll, bloque le pinch-to-zoom */
+                touch-action: pan-y !important;
             }
 
             body.ug-tv-dark-mode { --tv-bg: ${BG_DARK}; --tv-bg-alt: #1a1a1a; --tv-txt: ${TXT_WHITE}; --tv-accent: ${UG_YELLOW}; }
@@ -804,15 +802,33 @@
             body.ug-tv-active .ug-tv-tab { position: fixed !important; top: 100px !important; left: 0 !important; width: calc(100vw - var(--tv-aside-w)) !important; height: calc(100vh - 100px) !important; padding: 0 40px 40px 40px !important; box-sizing: border-box !important; z-index: 999998 !important; column-count: var(--tv-cols, 3) !important; column-gap: 60px !important; column-rule: 2px solid #555 !important; font-size: var(--tv-font, 18px) !important; line-height: 1.5 !important; overflow-x: auto !important; overflow-y: hidden !important; column-fill: auto !important; background: var(--tv-bg) !important; color: var(--tv-txt) !important; scroll-behavior: smooth; }
             body.ug-tv-active .ug-tv-tab span[style*="color"] { color: var(--tv-accent) !important; font-weight: bold !important; }
             
-            body.ug-tv-active .ug-tv-aside { position: fixed !important; top: 0 !important; right: 0 !important; width: var(--tv-aside-w) !important; height: 100vh !important; background: var(--tv-bg-alt) !important; z-index: 999998 !important; padding: 20px !important; box-sizing: border-box !important; border-left: 1px solid #444 !important; overflow-y: auto !important; scroll-behavior: smooth; }
+            /* PANNEAU LATÉRAL : Application du scale(0.75) sur tout le conteneur */
+            body.ug-tv-active .ug-tv-aside { 
+                position: fixed !important; 
+                top: 0 !important; 
+                right: 0 !important; 
+                width: 400px !important; /* Largeur interne pour éviter l'écrasement et les scrolls */
+                height: 142.86vh !important; /* Compense la réduction (100 / 0.75 = 133.33) */
+                transform: scale(0.7) !important; /* Zoom out global */
+                transform-origin: top right !important; /* Ancrage en haut à droite */
+                background: var(--tv-bg-alt) !important; 
+                z-index: 999998 !important; 
+                padding: 0px !important; /* 20px / 0.75 */
+                box-sizing: border-box !important; 
+                border-left: 1.5px solid #444 !important; /* Bordure réadaptée au scale */
+                overflow-y: auto !important; 
+                overflow-x: hidden !important; /* Sécurité anti-scroll horizontal */
+                scroll-behavior: smooth; 
+            }
             body.ug-tv-active .ug-tv-aside header, body.ug-tv-active .ug-tv-aside div, body.ug-tv-active .ug-tv-aside section { background-color: transparent !important; color: var(--tv-txt) !important; }
             body.ug-tv-active .ug-tv-aside [class*="ad" i] { display: none !important; }
-            body.ug-tv-active .ug-tv-aside section > div:has(canvas), body.ug-tv-active .ug-tv-aside section > div:has(svg) { display: flex !important; flex-wrap: wrap !important; justify-content: center !important; gap: 20px !important; width: 100% !important; overflow: visible !important; transform: none !important; }
-            body.ug-tv-active .ug-tv-aside canvas, body.ug-tv-active .ug-tv-aside svg { transform: scale(1.15) !important; transform-origin: center top !important; margin: 15px !important; }
+            body.ug-tv-active .ug-tv-aside section > div:has(canvas), body.ug-tv-active .ug-tv-aside section > div:has(svg) { display: flex !important; flex-wrap: wrap !important; justify-content: center !important; gap: 20px !important; width: 100% !important; overflow: visible !important; }
+            
+            /* Plus besoin de scale individuel, les éléments reprennent leur marge normale */
+            body.ug-tv-active .ug-tv-aside canvas, body.ug-tv-active .ug-tv-aside svg { margin: 10px !important; } 
             body.ug-tv-dark-mode .ug-tv-aside canvas, body.ug-tv-dark-mode .ug-tv-aside svg { filter: invert(1) hue-rotate(180deg) brightness(1.5) !important; }
             body.ug-tv-active .ug-tv-aside button:has(svg), body.ug-tv-active .ug-tv-aside button[aria-label] { display: none !important; }
             
-            /* Boutons de la toolbar - Thème Jaune Doré */
             .ug-btn { display: flex; align-items: center; gap: 8px; background: rgba(0,0,0,0.4); color: ${TXT_WHITE}; padding: 10px 18px; border: 1px solid rgba(255,255,255,0.15); border-radius: 20px; cursor: pointer; font-size: 14px; font-weight: 500; transition: all 0.2s; font-family: sans-serif; outline: none; }
             .ug-btn.ug-tv-active-opt { background: ${UG_YELLOW}; border-color: ${UG_YELLOW}; color: ${BG_DARK}; font-weight: bold; }
             .ug-btn-group { display: flex; align-items: center; background: rgba(0,0,0,0.6); border-radius: 20px; padding: 4px; box-shadow: inset 0 1px 3px rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.1); }
@@ -1017,24 +1033,36 @@
       savePrefs();
     }
 
+    // =========================================================
+    // LOGIQUE: AUTO-FIT "LIVE" AVEC SETINTERVAL
+    // ET RÉDUCTION ADAPTATIVE DES COLONNES
+    // =========================================================
     function autoFit() {
       if (!isTVMode) return;
       currentFont = 35;
       applyStyles();
       autoFitOverlay.style.display = "flex";
-      setTimeout(() => {
-        let safety = 100;
-        while (
-          (preEl.scrollWidth > preEl.clientWidth || preEl.scrollHeight > preEl.clientHeight) &&
-          currentFont > 3 &&
-          safety > 0
-        ) {
-          currentFont -= 0.5;
-          applyStyles();
-          safety--;
+
+      const fitInterval = setInterval(() => {
+        const isOverflowing = preEl.scrollWidth > preEl.clientWidth || preEl.scrollHeight > preEl.clientHeight;
+
+        if (isOverflowing) {
+          if (currentFont > 3) {
+            currentFont -= 0.5;
+            applyStyles();
+          } else {
+            // Terminé au minimum possible
+            clearInterval(fitInterval);
+            autoFitOverlay.style.display = "none";
+            savePrefs();
+          }
+        } else {
+          // Plus de débordement, l'ajustement est parfait !
+          clearInterval(fitInterval);
+          autoFitOverlay.style.display = "none";
+          savePrefs();
         }
-        autoFitOverlay.style.display = "none";
-      }, 150);
+      }, 30); // 30 millisecondes = animation visuelle très rapide et fluide
     }
 
     function activateTabTV() {
