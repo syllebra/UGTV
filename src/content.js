@@ -18,7 +18,7 @@
   // Clés de stockage
   const GLOBAL_TV_KEY = "ug_tv_global_state";
   const LOADING_TAB_NAME_KEY = "ug_tv_loading_tab_name";
-  let isGlobalTVModeOn = localStorage.getItem(GLOBAL_TV_KEY) === "true";
+  let isGlobalTVModeOn = true; //localStorage.getItem(GLOBAL_TV_KEY) === "true";
 
   // =========================================================
   // GESTION DU LOADER FULLSCREEN PERSONNALISÉ
