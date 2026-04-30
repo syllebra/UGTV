@@ -209,7 +209,7 @@
 
     const launcher = document.createElement("button");
     launcher.id = "ug-tv-launcher";
-    launcher.innerHTML = `${UG_LOGO_SVG_SMALL} Activer Mode TV`;
+    launcher.innerHTML = `${UG_LOGO_SVG_SMALL} Démarrer Mode TV`;
     document.body.appendChild(launcher);
 
     const overlay = document.createElement("div");
