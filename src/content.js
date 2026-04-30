@@ -18,7 +18,7 @@
   // Clés de stockage
   const GLOBAL_TV_KEY = "ug_tv_global_state";
   const LOADING_TAB_NAME_KEY = "ug_tv_loading_tab_name";
-  let isGlobalTVModeOn = true; //localStorage.getItem(GLOBAL_TV_KEY) === "true";
+  let isGlobalTVModeOn = localStorage.getItem(GLOBAL_TV_KEY) === "true";
 
   // =========================================================
   // GESTION DU LOADER FULLSCREEN PERSONNALISÉ
@@ -143,7 +143,7 @@
   route();
 
   // =========================================================
-  // 2. MODE "LISTE" & RECHERCHE AVEC CLONAGE DES ETOILES
+  // 2. MODE "LISTE" & RECHERCHE AVEC PAGINATION INTELLIGENTE
   // =========================================================
   function initListTVMode() {
     if (document.getElementById("ug-tv-launcher")) return;
@@ -177,10 +177,10 @@
 
             .ug-tv-close-list { background: #333; color: ${TXT_WHITE}; border: none; padding: 12px 25px; border-radius: 20px; cursor: pointer; font-weight: bold; outline: none; transition: background 0.2s; font-size: 1.1em;}
             .ug-tv-close-list.ug-tv-focused, .ug-tv-close-list:hover { background: #444; box-shadow: 0 0 0 3px ${UG_YELLOW};}
-            .ug-tv-favorites-list { background: ${UG_YELLOW}; color: ${BG_DARK}; border: none; padding: 12px 25px; border-radius: 20px; cursor: pointer; font-weight: bold; outline: none; transition: background 0.2s; font-size: 1.1em;}
-            .ug-tv-favorites-list.ug-tv-focused, .ug-tv-favorites-list:hover { background: ${UG_YELLOW_DARK}; box-shadow: 0 0 0 3px ${UG_YELLOW};}
+            .ug-tv-favorites-btn { background: ${UG_YELLOW}; color: ${BG_DARK}; border: none; padding: 12px 25px; border-radius: 20px; cursor: pointer; font-weight: bold; outline: none; transition: background 0.2s; font-size: 1.1em;}
+            .ug-tv-favorites-btn.ug-tv-focused, .ug-tv-favorites-btn:hover { background: ${UG_YELLOW_DARK}; box-shadow: 0 0 0 3px ${UG_YELLOW};}
 
-            .ug-tv-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; padding-bottom: 50px;}
+            .ug-tv-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; padding-bottom: 20px;}
             .ug-tv-card {
                 background: ${BG_CARD}; border-radius: 10px; padding: 25px; cursor: pointer;
                 transition: transform 0.2s, background 0.2s, box-shadow 0.2s;
@@ -190,21 +190,20 @@
             .ug-tv-card-title { font-size: 1.2em; font-weight: bold; padding-right: 80px; }
             .ug-tv-card-artist { font-size: 0.9em; color: ${TXT_GRAY}; text-transform: uppercase; letter-spacing: 1px;}
             
-            /* Conteneur pour le bloc d'évaluation cloné */
-            .ug-tv-card-rating-wrap { 
-                position: absolute; top: 15px; right: 15px; 
-                display: flex; align-items: center; gap: 6px; 
-                background: rgba(0,0,0,0.5); padding: 5px 10px; border-radius: 12px;
-                font-size: 0.85em; font-weight: bold; color: ${TXT_WHITE};
-            }
-            /* Assure que les étoiles clonées s'affichent proprement (si le CSS original lâche) */
+            /* Evaluations */
+            .ug-tv-card-rating-wrap { position: absolute; top: 15px; right: 15px; display: flex; align-items: center; gap: 6px; background: rgba(0,0,0,0.5); padding: 5px 10px; border-radius: 12px; font-size: 0.85em; font-weight: bold; color: ${TXT_WHITE}; }
             .ug-tv-card-rating-wrap > div { display: flex; align-items: center; gap: 4px; }
             .ug-tv-card-rating-wrap svg { width: 14px !important; height: 14px !important; }
             
-            .ug-tv-card.ug-tv-focused, .ug-tv-card:hover {
-                transform: scale(1.05); background: #333; border-color: ${UG_YELLOW};
-                box-shadow: 0 10px 20px rgba(0,0,0,0.5); z-index: 10;
-            }
+            .ug-tv-card.ug-tv-focused, .ug-tv-card:hover { transform: scale(1.05); background: #333; border-color: ${UG_YELLOW}; box-shadow: 0 10px 20px rgba(0,0,0,0.5); z-index: 10; }
+
+            /* Pagination */
+            .ug-tv-pagination { display: flex; justify-content: center; gap: 10px; padding: 40px 0; flex-wrap: wrap; width: 100%; }
+            .ug-tv-page-btn, .ug-tv-page-active, .ug-tv-page-dots { background: #333; color: ${TXT_WHITE}; padding: 12px 20px; border-radius: 12px; font-weight: bold; font-size: 1.1em; }
+            .ug-tv-page-btn { cursor: pointer; border: 2px solid transparent; transition: all 0.2s; }
+            .ug-tv-page-active { background: ${UG_YELLOW}; color: ${BG_DARK}; border: 2px solid ${UG_YELLOW}; cursor: default; }
+            .ug-tv-page-dots { background: transparent; color: #888; }
+            .ug-tv-page-btn.ug-tv-focused, .ug-tv-page-btn:hover { background: #444; border-color: ${UG_YELLOW}; transform: scale(1.1); box-shadow: 0 0 15px rgba(230, 163, 35, 0.4); z-index: 10; }
         `;
     document.head.appendChild(style);
 
@@ -220,14 +219,18 @@
 
     let isListTVMode = false;
     let cards = [];
-    let currentIndex = -3; // -3 = Recherche, -2 = Favoris, -1 = Bouton Quitter, 0+ = Cartes
+    let pageBtns = [];
+    let totalItems = 0;
+    let currentIndex = -3;
     let listKeydownHandler = null;
 
     function updateListFocus() {
       cards.forEach((c) => c.classList.remove("ug-tv-focused"));
+      pageBtns.forEach((b) => b.classList.remove("ug-tv-focused"));
       overlay.querySelector(".ug-tv-close-list").classList.remove("ug-tv-focused");
       const favBtn = document.getElementById("ug-tv-favorites-btn");
       if (favBtn) favBtn.classList.remove("ug-tv-focused");
+
       const searchInput = document.getElementById("ug-tv-search");
       if (searchInput) searchInput.classList.remove("ug-tv-focused");
 
@@ -240,10 +243,15 @@
       } else if (currentIndex === -1) {
         overlay.querySelector(".ug-tv-close-list").classList.add("ug-tv-focused");
         if (searchInput) searchInput.blur();
-      } else if (cards[currentIndex]) {
+      } else if (currentIndex >= 0 && currentIndex < cards.length) {
         if (searchInput) searchInput.blur();
         cards[currentIndex].classList.add("ug-tv-focused");
         cards[currentIndex].scrollIntoView({ behavior: "smooth", block: "center" });
+      } else if (currentIndex >= cards.length && currentIndex < totalItems) {
+        if (searchInput) searchInput.blur();
+        const btnIndex = currentIndex - cards.length;
+        pageBtns[btnIndex].classList.add("ug-tv-focused");
+        pageBtns[btnIndex].scrollIntoView({ behavior: "smooth", block: "center" });
       }
     }
 
@@ -279,10 +287,8 @@
           .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
           .join(" ");
 
-        // --- STRATÉGIE DU "COPIER-COLLER" (CLONE) ---
         let ratingHTML = "";
         try {
-          // 1. Isoler la boîte de la chanson
           let rowContainer = a.closest('[role="row"]');
           if (!rowContainer) {
             let curr = a;
@@ -300,7 +306,6 @@
             if (!rowContainer) rowContainer = curr;
           }
 
-          // 2. Chercher le bloc exact et cloner son HTML
           const allElements = Array.from(rowContainer.querySelectorAll("*"));
           for (let el of allElements) {
             if (el.children.length === 2) {
@@ -310,15 +315,10 @@
                   (c) => c.tagName.toUpperCase() === "SPAN" || c.tagName.toUpperCase() === "SVG",
                 );
                 if (isAllStars) {
-                  // BINGO ! On fait une copie exacte de ce bloc (étoiles + texte)
                   const clone = el.cloneNode(true);
-
-                  // On force un affichage en ligne propre au cas où le CSS original sauterait
                   clone.style.display = "flex";
                   clone.style.alignItems = "center";
                   clone.style.gap = "6px";
-
-                  // On récupère le code HTML sous forme de texte
                   ratingHTML = clone.outerHTML;
                   break;
                 }
@@ -337,22 +337,61 @@
       const uniqueTabs = [];
       songsMap.forEach((versions, key) => {
         versions.sort((a, b) => a.tabId - b.tabId);
-
         versions.forEach((tab, idx) => {
           let displayTitle = tab.title;
-          if (versions.length > 1) {
+          if (versions.length > 1)
             displayTitle += ` <span style="color:${UG_YELLOW}; font-size:0.8em;">(v${idx + 1})</span>`;
-          }
           uniqueTabs.push({ ...tab, displayTitle });
         });
       });
 
+      let currentPage = 1;
+      const urlPageMatch = window.location.href.match(/[?&]page=(\d+)/);
+      if (urlPageMatch) currentPage = parseInt(urlPageMatch[1], 10);
+
+      const allPageLinks = Array.from(document.querySelectorAll("a")).filter(
+        (a) => a.href && a.href.match(/[?&]page=(\d+)/),
+      );
+      let maxPage = currentPage;
+      allPageLinks.forEach((a) => {
+        const pageNum = parseInt(a.href.match(/[?&]page=(\d+)/)[1], 10);
+        if (pageNum > maxPage) maxPage = pageNum;
+      });
+
+      let paginationHTML = "";
+      if (maxPage > 1) {
+        let baseUrlPattern = window.location.href;
+        if (!baseUrlPattern.match(/[?&]page=\d+/)) {
+          baseUrlPattern += baseUrlPattern.includes("?") ? "&page=1" : "?page=1";
+        }
+        const generatePageUrl = (page) => baseUrlPattern.replace(/([?&])page=\d+/, `$1page=${page}`);
+
+        paginationHTML = '<div class="ug-tv-pagination">';
+
+        if (currentPage > 1) {
+          paginationHTML += `<div class="ug-tv-page-btn" data-href="${generatePageUrl(currentPage - 1)}">&larr; Précédent</div>`;
+        }
+
+        for (let i = 1; i <= maxPage; i++) {
+          if (i === 1 || i === maxPage || (i >= currentPage - 2 && i <= currentPage + 2)) {
+            if (i === currentPage) paginationHTML += `<div class="ug-tv-page-active">${i}</div>`;
+            else paginationHTML += `<div class="ug-tv-page-btn" data-href="${generatePageUrl(i)}">${i}</div>`;
+          } else if (i === currentPage - 3 || i === currentPage + 3) {
+            paginationHTML += `<div class="ug-tv-page-dots">...</div>`;
+          }
+        }
+
+        if (currentPage < maxPage) {
+          paginationHTML += `<div class="ug-tv-page-btn" data-href="${generatePageUrl(currentPage + 1)}">Suivant &rarr;</div>`;
+        }
+
+        paginationHTML += "</div>";
+      }
+
       let titleText = "Explorer";
-      if (currentUrl.includes("mytabs") || currentUrl.includes("my_tabs")) {
-        titleText = "Mes Tablatures";
-      } else if (currentUrl.includes("search.php")) {
-        const urlParams = new URLSearchParams(window.location.search);
-        const q = urlParams.get("title");
+      if (currentUrl.includes("mytabs") || currentUrl.includes("my_tabs")) titleText = "Mes Tablatures";
+      else if (currentUrl.includes("search.php")) {
+        const q = new URLSearchParams(window.location.search).get("title");
         titleText = q ? `Recherche: "${q}"` : "Recherche";
       }
 
@@ -361,7 +400,7 @@
                     <h1>${UG_LOGO_SVG_SMALL} ${titleText}</h1>
                     <div class="ug-tv-header-controls">
                         <input type="text" id="ug-tv-search" placeholder="Rechercher (ex: Goldman)..." autocomplete="off" />
-                        <button class="ug-tv-favorites-list" id="ug-tv-favorites-btn">Mes Favoris</button>
+                        <button class="ug-tv-favorites-btn" id="ug-tv-favorites-btn">Mes Favoris</button>
                         <button class="ug-tv-close-list">Quitter TV</button>
                     </div>
                 </div>
@@ -383,11 +422,15 @@
         });
       }
       html += `</div>`;
+      html += paginationHTML;
+
       overlay.innerHTML = html;
 
       cards = Array.from(overlay.querySelectorAll(".ug-tv-card"));
+      pageBtns = Array.from(overlay.querySelectorAll(".ug-tv-page-btn"));
+      totalItems = cards.length + pageBtns.length;
 
-      currentIndex = cards.length > 0 ? 0 : -3;
+      currentIndex = cards.length > 0 ? 0 : -1;
       updateListFocus();
 
       const searchInput = document.getElementById("ug-tv-search");
@@ -427,11 +470,26 @@
         });
       }
 
+      if (pageBtns.length > 0) {
+        pageBtns.forEach((btn, index) => {
+          btn.addEventListener("mouseenter", () => {
+            currentIndex = cards.length + index;
+            updateListFocus();
+          });
+          btn.addEventListener("click", () => {
+            const url = btn.getAttribute("data-href");
+            if (url) {
+              showLoader();
+              window.location.href = url;
+            }
+          });
+        });
+      }
+
       overlay.querySelector(".ug-tv-close-list").addEventListener("click", closeListMode);
 
       listKeydownHandler = (e) => {
         if (!isListTVMode) return;
-
         const isSearchFocused = document.activeElement === searchInput;
 
         if (isSearchFocused) {
@@ -473,33 +531,55 @@
         if (e.key === "ArrowRight") {
           if (currentIndex === -3) currentIndex = -2;
           else if (currentIndex === -2) currentIndex = -1;
-          else if (currentIndex === -1) currentIndex = cards.length > 0 ? 0 : -3;
-          else currentIndex = Math.min(currentIndex + 1, cards.length - 1);
+          else if (currentIndex === -1) currentIndex = cards.length > 0 ? 0 : pageBtns.length > 0 ? cards.length : -3;
+          else if (currentIndex >= 0 && currentIndex < cards.length) {
+            if (currentIndex < cards.length - 1) currentIndex++;
+            else if (pageBtns.length > 0) currentIndex++;
+          } else if (currentIndex >= cards.length && currentIndex < totalItems - 1) {
+            currentIndex++;
+          }
         }
+
         if (e.key === "ArrowLeft") {
           if (currentIndex === -2) currentIndex = -3;
           else if (currentIndex === -1) currentIndex = -2;
-          else if (currentIndex === -3) currentIndex = -3;
-          else if (currentIndex % cols === 0) currentIndex = -3;
-          else currentIndex = Math.max(currentIndex - 1, 0);
+          else if (currentIndex === -3 || currentIndex === 0) currentIndex = -3;
+          else if (currentIndex > 0 && currentIndex < cards.length) {
+            if (currentIndex % cols === 0) currentIndex = -3;
+            else currentIndex--;
+          } else if (currentIndex === cards.length) {
+            currentIndex--;
+          } else if (currentIndex > cards.length) {
+            currentIndex--;
+          }
         }
+
         if (e.key === "ArrowDown") {
-          if (currentIndex === -1 || currentIndex === -2 || currentIndex === -3) currentIndex = cards.length > 0 ? 0 : currentIndex;
-          else currentIndex = Math.min(currentIndex + cols, cards.length - 1);
+          if (currentIndex === -1 || currentIndex === -2 || currentIndex === -3) {
+            currentIndex = cards.length > 0 ? 0 : pageBtns.length > 0 ? cards.length : currentIndex;
+          } else if (currentIndex >= 0 && currentIndex < cards.length) {
+            if (currentIndex + cols < cards.length) {
+              currentIndex += cols;
+            } else if (pageBtns.length > 0) {
+              currentIndex = cards.length;
+            }
+          }
         }
+
         if (e.key === "ArrowUp") {
-          if (currentIndex < cols && currentIndex >= 0) currentIndex = -3;
-          else if (currentIndex >= 0) currentIndex = Math.max(currentIndex - cols, 0);
+          if (currentIndex >= 0 && currentIndex < cards.length) {
+            if (currentIndex < cols) currentIndex = -3;
+            else currentIndex -= cols;
+          } else if (currentIndex >= cards.length) {
+            currentIndex = cards.length > 0 ? cards.length - 1 : -3;
+          }
         }
 
         if (e.key === "Enter") {
-          if (currentIndex === -1) {
-            closeListMode();
-          } else if (currentIndex === -2) {
-            favBtn.click();
-          } else if (currentIndex === -3) {
-            searchInput.focus();
-          } else if (cards[currentIndex]) {
+          if (currentIndex === -1) closeListMode();
+          else if (currentIndex === -2) favBtn.click();
+          else if (currentIndex === -3) searchInput.focus();
+          else if (currentIndex >= 0 && currentIndex < cards.length) {
             const url = cards[currentIndex].getAttribute("data-href");
             const name = cards[currentIndex].getAttribute("data-name");
             if (url) {
@@ -507,12 +587,17 @@
               showLoader();
               window.location.href = url;
             }
+          } else if (currentIndex >= cards.length && currentIndex < totalItems) {
+            const btnIndex = currentIndex - cards.length;
+            const url = pageBtns[btnIndex].getAttribute("data-href");
+            if (url) {
+              showLoader();
+              window.location.href = url;
+            }
           }
         }
 
-        if (e.key === "Escape" || e.key === "Backspace") {
-          window.history.back();
-        }
+        if (e.key === "Escape" || e.key === "Backspace") window.history.back();
 
         updateListFocus();
       };
@@ -564,14 +649,36 @@
     if (document.getElementById("ug-tv-launcher")) return;
 
     const preEl = document.querySelector("pre") || document.querySelector("code");
+
+    // --- NOUVELLE LOGIQUE DE DÉTECTION DU PANNEAU D'ACCORDS ---
     let asideEl = document.querySelector("aside");
+
     if (!asideEl) {
-      const instBtn = Array.from(document.querySelectorAll("span, button, nav")).find(
-        (b) => b.innerText && b.innerText.match(/ukul[eé]l[eé]|piano/i),
-      );
-      if (instBtn)
-        asideEl =
-          instBtn.closest("aside") || instBtn.closest("section") || instBtn.parentElement.parentElement.parentElement;
+      // Approche 1: Chercher via les attributs data-key des onglets d'instruments
+      let instTab = document.querySelector('[data-key="guitar"], [data-key="ukulele"], [data-key="piano"]');
+      if (instTab) {
+        asideEl = instTab.closest("section, aside, div");
+        // S'assurer qu'on remonte assez haut pour prendre toute la boite
+        if (asideEl && !asideEl.querySelector("canvas")) {
+          asideEl = instTab.parentElement.parentElement.parentElement.parentElement;
+        }
+      }
+    }
+
+    if (!asideEl) {
+      // Approche 2: Chercher via le titre "Accords" ou "Chords"
+      const headings = Array.from(document.querySelectorAll("h2, h3, span, div")).filter((el) => {
+        const txt = (el.textContent || "").trim().toLowerCase();
+        return txt === "accords" || txt === "chords";
+      });
+      for (let h of headings) {
+        let parent = h.closest("section, aside, div");
+        // On s'assure que cette section contient bien des diagrammes (canvas ou svg)
+        if (parent && parent.querySelector("canvas, svg")) {
+          asideEl = parent;
+          break;
+        }
+      }
     }
 
     const tabKey = "ug_tv_prefs_" + window.location.pathname;
@@ -697,6 +804,10 @@
 
             .ug-tv-indicator { position: fixed; bottom: 5px; left: 50%; transform: translateX(-50%); width: 80px; height: 5px; background: rgba(150,150,150,0.6); border-radius: 3px; z-index: 9999997; pointer-events: none; transition: opacity 0.4s; }
             .ug-tv-show-cursor { cursor: default !important; }
+
+            #ug-autofit-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.6); z-index: 99999999; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+            .ug-autofit-spinner { border: 4px solid rgba(255,255,255,0.1); border-top: 4px solid ${UG_YELLOW}; border-radius: 50%; width: 50px; height: 50px; animation: ug-tv-spin 1s linear infinite; }
+            .ug-autofit-text { color: ${TXT_WHITE}; font-size: 1.2em; margin-top: 20px; font-family: sans-serif; font-weight: bold; }
         `;
     document.head.appendChild(style);
 
@@ -762,6 +873,12 @@
         `;
     document.body.appendChild(toolbar);
     document.body.appendChild(indicator);
+
+    const autoFitOverlay = document.createElement("div");
+    autoFitOverlay.id = "ug-autofit-overlay";
+    autoFitOverlay.style.display = "none";
+    autoFitOverlay.innerHTML = `<div class="ug-autofit-spinner"></div><div class="ug-autofit-text">Auto-Fit...</div>`;
+    document.body.appendChild(autoFitOverlay);
 
     if (isDark) document.body.classList.add("ug-tv-dark-mode");
     if (!isAsideVisible) document.body.classList.add("ug-tv-hide-aside");
@@ -881,6 +998,7 @@
       if (!isTVMode) return;
       currentFont = 35;
       applyStyles();
+      autoFitOverlay.style.display = "flex";
       setTimeout(() => {
         let safety = 100;
         while (
@@ -892,6 +1010,7 @@
           applyStyles();
           safety--;
         }
+        autoFitOverlay.style.display = "none";
       }, 150);
     }
 
@@ -991,26 +1110,19 @@
   }
 
   // =========================================================
-  // 5. ECOUTEUR POUR L'ICONE DE L'EXTENSION CHROME
+  // 5. ECOUTEUR CHROME (SÉCURISÉ POUR ANDROID WEBVIEW)
   // =========================================================
-  chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    if (request.action === "toggle_tv_mode") {
-      const closeTabBtn = document.getElementById("ug-close-tv");
-      const closeListBtn = document.querySelector(".ug-tv-close-list");
-      const launcherBtn = document.getElementById("ug-tv-launcher");
+  if (typeof chrome !== "undefined" && chrome.runtime && chrome.runtime.onMessage) {
+    chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+      if (request.action === "toggle_tv_mode") {
+        const closeTabBtn = document.getElementById("ug-close-tv");
+        const closeListBtn = document.querySelector(".ug-tv-close-list");
+        const launcherBtn = document.getElementById("ug-tv-launcher");
 
-      // Si le mode TV (Tablature) est actif, on le ferme
-      if (document.body.classList.contains("ug-tv-active") && closeTabBtn) {
-        closeTabBtn.click();
+        if (document.body.classList.contains("ug-tv-active") && closeTabBtn) closeTabBtn.click();
+        else if (document.body.classList.contains("ug-tv-list-active") && closeListBtn) closeListBtn.click();
+        else if (launcherBtn) launcherBtn.click();
       }
-      // Si le mode TV (Liste) est actif, on le ferme
-      else if (document.body.classList.contains("ug-tv-list-active") && closeListBtn) {
-        closeListBtn.click();
-      }
-      // Sinon, si le launcher est là, on clique dessus pour l'activer
-      else if (launcherBtn) {
-        launcherBtn.click();
-      }
-    }
-  });
+    });
+  }
 })();
