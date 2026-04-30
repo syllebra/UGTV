@@ -105,6 +105,20 @@
   // =========================================================
   let currentUrl = location.href;
 
+  function lockViewport() {
+    let metaViewport = document.querySelector('meta[name="viewport"]');
+    if (!metaViewport) {
+      metaViewport = document.createElement("meta");
+      metaViewport.name = "viewport";
+      document.head.appendChild(metaViewport);
+    }
+    // Force la largeur à celle de l'écran, et bloque totalement le zoom
+    metaViewport.content =
+      "width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no";
+  }
+
+  // N'oubliez pas d'appeler lockViewport() dans activateTabTV() et activateListTV() !
+
   function route() {
     cleanUpEverything();
     if (location.href.match(/explore|mytabs|my_tabs|search\.php/i)) {
@@ -256,6 +270,8 @@
     }
 
     function activateListTV() {
+      lockViewport();
+
       isListTVMode = true;
       localStorage.setItem(GLOBAL_TV_KEY, "true");
       isGlobalTVModeOn = true;
@@ -403,7 +419,7 @@
                         <button class="ug-tv-favorites-btn" id="ug-tv-favorites-btn">Mes Favoris</button>
                         <button class="ug-tv-close-list">Quitter TV</button>
                     </div>
-                </div>
+                </div> 
                 <div class="ug-tv-grid">
             `;
 
@@ -760,6 +776,13 @@
     style.className = "ug-tv-style";
     style.innerHTML = `
             :root { --tv-bg: ${TXT_WHITE}; --tv-bg-alt: #f4f5f6; --tv-txt: ${BG_DARK}; --tv-accent: ${UG_YELLOW}; --tv-aside-w: 420px; }
+            body.ug-tv-active, body.ug-tv-active *,
+            body.ug-tv-list-active, body.ug-tv-list-active * {
+                -webkit-text-size-adjust: 100% !important;
+                text-size-adjust: 100% !important;
+                touch-action: pan-y !important; /* Autorise le scroll, bloque le pinch-to-zoom */
+            }
+
             body.ug-tv-dark-mode { --tv-bg: ${BG_DARK}; --tv-bg-alt: #1a1a1a; --tv-txt: ${TXT_WHITE}; --tv-accent: ${UG_YELLOW}; }
             body.ug-tv-hide-aside { --tv-aside-w: 0px !important; }
             body.ug-tv-hide-aside .ug-tv-aside { display: none !important; }
@@ -1015,6 +1038,8 @@
     }
 
     function activateTabTV() {
+      lockViewport();
+
       isTVMode = true;
       localStorage.setItem(GLOBAL_TV_KEY, "true");
       isGlobalTVModeOn = true;
