@@ -11,7 +11,7 @@
   "content_scripts": [
     {
       "matches": ["*://*.ultimate-guitar.com/*"],
-      "js": ["content.js"]
+      "js": ["chords_generator.js", "content.js"]
     }
   ]
 }

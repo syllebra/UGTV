@@ -18,7 +18,7 @@
   // Clés de stockage
   const GLOBAL_TV_KEY = "ug_tv_global_state";
   const LOADING_TAB_NAME_KEY = "ug_tv_loading_tab_name";
-  let isGlobalTVModeOn = true;
+  let isGlobalTVModeOn = localStorage.getItem(GLOBAL_TV_KEY) === "true";
 
   // =========================================================
   // GESTION DU LOADER FULLSCREEN PERSONNALISÉ
@@ -143,7 +143,13 @@
       "ug-tv-show-cursor",
       "ug-tv-list-active",
     );
-    const elementsToRemove = ["ug-tv-launcher", "ug-tv-toolbar", "ug-tv-list-overlay", "ug-tv-indicator"];
+    const elementsToRemove = [
+      "ug-tv-launcher",
+      "ug-tv-toolbar",
+      "ug-tv-list-overlay",
+      "ug-tv-indicator",
+      "ug-tv-custom-chord-panel",
+    ];
     elementsToRemove.forEach((id) => {
       const el = document.getElementById(id);
       if (el) el.remove();
@@ -663,19 +669,19 @@
 
     const preEl = document.querySelector("pre") || document.querySelector("code");
 
-    let asideEl = document.querySelector("aside");
+    let originalAside = document.querySelector("aside");
 
-    if (!asideEl) {
+    if (!originalAside) {
       let instTab = document.querySelector('[data-key="guitar"], [data-key="ukulele"], [data-key="piano"]');
       if (instTab) {
-        asideEl = instTab.closest("section, aside, div");
-        if (asideEl && !asideEl.querySelector("canvas")) {
-          asideEl = instTab.parentElement.parentElement.parentElement.parentElement;
+        originalAside = instTab.closest("section, aside, div");
+        if (originalAside && !originalAside.querySelector("canvas")) {
+          originalAside = instTab.parentElement.parentElement.parentElement.parentElement;
         }
       }
     }
 
-    if (!asideEl) {
+    if (!originalAside) {
       const headings = Array.from(document.querySelectorAll("h2, h3, span, div")).filter((el) => {
         const txt = (el.textContent || "").trim().toLowerCase();
         return txt === "accords" || txt === "chords";
@@ -683,11 +689,21 @@
       for (let h of headings) {
         let parent = h.closest("section, aside, div");
         if (parent && parent.querySelector("canvas, svg")) {
-          asideEl = parent;
+          originalAside = parent;
           break;
         }
       }
     }
+
+    if (originalAside) {
+      originalAside.classList.add("ug-tv-hidden-original");
+    }
+
+    // Création du nouveau panneau géré par ChordGenerator
+    let asideEl = document.createElement("div");
+    asideEl.id = "ug-tv-custom-chord-panel";
+    asideEl.className = "ug-tv-aside ug-tv-keep";
+    document.body.appendChild(asideEl);
 
     const tabKey = "ug_tv_prefs_" + window.location.pathname;
     let prefs = JSON.parse(localStorage.getItem(tabKey)) || {
@@ -713,6 +729,13 @@
       localStorage.setItem(tabKey, JSON.stringify(prefs));
     }
 
+    if (isDark) {
+      document.body.classList.add("ug-tv-dark-mode");
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+
     document.addEventListener("click", (e) => {
       const btn = e.target.closest('button, [role="button"], span, a');
       if (btn && !btn.closest("#ug-tv-toolbar") && !btn.closest("#ug-tv-launcher")) {
@@ -725,6 +748,7 @@
           savePrefs();
           const toolbarBtn = document.getElementById("ug-btn-inst");
           if (toolbarBtn) toolbarBtn.innerText = instLabels[prefs.inst];
+          setTimeout(() => updateCustomChords(prefs.inst), 200);
         }
       }
     });
@@ -764,6 +788,47 @@
       }, 300);
     }
 
+    function updateCustomChords(inst) {
+      if (!asideEl || typeof ChordGenerator === "undefined") return;
+
+      const pre = document.querySelector("pre") || document.querySelector("code");
+      if (!pre) return;
+
+      const chords = new Set();
+      const chordElements = pre.querySelectorAll("span[data-name]");
+      if (chordElements.length > 0) {
+        chordElements.forEach((el) => {
+          const chord = el.getAttribute("data-name");
+          if (chord && chord.length <= 10 && /^[A-G]/.test(chord)) chords.add(chord);
+        });
+      } else {
+        const regex = /\b([CDEFGAB][#b]?(m|min|maj|sus|dim|add|aug|7|9|11|13)?)\b/g;
+        const matches = pre.textContent.match(regex);
+        if (matches) matches.forEach((m) => chords.add(m));
+      }
+
+      const chordString = Array.from(chords).join(",");
+
+      let tuningMap = {
+        guitar: "guitar_standard",
+        ukulele: "ukulele_standard",
+        piano: "piano",
+      };
+
+      asideEl.innerHTML = `<h2 style="margin: 0 0 20px 0; color: ${UG_YELLOW}; font-family: sans-serif; text-align: center; font-size: 1.5em; border-bottom: 1px solid #333; padding-bottom: 15px;">Accords</h2>`;
+
+      const container = document.createElement("div");
+      // Ajout de la classe qui force la grille responsive dans le panneau
+      container.className = "ug-tv-chord-grid";
+      asideEl.appendChild(container);
+
+      new ChordGenerator(container, chordString, {
+        tuning: tuningMap[inst] || "guitar_standard",
+        size: 110,
+        displayMode: "notes",
+      });
+    }
+
     const style = document.createElement("style");
     style.className = "ug-tv-style";
     style.innerHTML = `
@@ -772,7 +837,7 @@
                 --tv-bg-alt: #f4f5f6; 
                 --tv-txt: ${BG_DARK}; 
                 --tv-accent: ${UG_YELLOW}; 
-                --tv-aside-w: 300px; /* L'espace visuel final souhaité à l'écran */
+                --tv-aside-w: 300px; 
             }
             body.ug-tv-active, body.ug-tv-active *,
             body.ug-tv-list-active, body.ug-tv-list-active * {
@@ -802,33 +867,61 @@
             body.ug-tv-active .ug-tv-tab { position: fixed !important; top: 100px !important; left: 0 !important; width: calc(100vw - var(--tv-aside-w)) !important; height: calc(100vh - 100px) !important; padding: 0 40px 40px 40px !important; box-sizing: border-box !important; z-index: 999998 !important; column-count: var(--tv-cols, 3) !important; column-gap: 60px !important; column-rule: 2px solid #555 !important; font-size: var(--tv-font, 18px) !important; line-height: 1.5 !important; overflow-x: auto !important; overflow-y: hidden !important; column-fill: auto !important; background: var(--tv-bg) !important; color: var(--tv-txt) !important; scroll-behavior: smooth; }
             body.ug-tv-active .ug-tv-tab span[style*="color"] { color: var(--tv-accent) !important; font-weight: bold !important; }
             
-            /* PANNEAU LATÉRAL : Application du scale(0.75) sur tout le conteneur */
-            body.ug-tv-active .ug-tv-aside { 
+            body.ug-tv-active .ug-tv-hidden-original { display: none !important; }
+            body.ug-tv-active #ug-tv-custom-chord-panel {
                 position: fixed !important; 
                 top: 0 !important; 
                 right: 0 !important; 
-                width: 400px !important; /* Largeur interne pour éviter l'écrasement et les scrolls */
-                height: 142.86vh !important; /* Compense la réduction (100 / 0.75 = 133.33) */
-                transform: scale(0.7) !important; /* Zoom out global */
-                transform-origin: top right !important; /* Ancrage en haut à droite */
+                width: var(--tv-aside-w) !important; 
+                height: 100vh !important;
                 background: var(--tv-bg-alt) !important; 
                 z-index: 999998 !important; 
-                padding: 0px !important; /* 20px / 0.75 */
+                padding: 20px !important; 
                 box-sizing: border-box !important; 
-                border-left: 1.5px solid #444 !important; /* Bordure réadaptée au scale */
+                border-left: 1.5px solid #444 !important; 
                 overflow-y: auto !important; 
-                overflow-x: hidden !important; /* Sécurité anti-scroll horizontal */
+                overflow-x: hidden !important;
                 scroll-behavior: smooth; 
+                transform: none !important;
             }
-            body.ug-tv-active .ug-tv-aside header, body.ug-tv-active .ug-tv-aside div, body.ug-tv-active .ug-tv-aside section { background-color: transparent !important; color: var(--tv-txt) !important; }
-            body.ug-tv-active .ug-tv-aside [class*="ad" i] { display: none !important; }
-            body.ug-tv-active .ug-tv-aside section > div:has(canvas), body.ug-tv-active .ug-tv-aside section > div:has(svg) { display: flex !important; flex-wrap: wrap !important; justify-content: center !important; gap: 20px !important; width: 100% !important; overflow: visible !important; }
+            body.ug-tv-active #ug-tv-custom-chord-panel * {
+                visibility: visible !important;
+            }
+
+            /* ---> FORCER LA GRILLE RESPONSIVE POUR CHORD GENERATOR <--- */
+            .ug-tv-chord-grid {
+                display: grid !important;
+                grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)) !important;
+                gap: 15px !important;
+                width: 100% !important;
+            }
+            .ug-tv-chord-grid > div {
+                width: 100% !important;
+                min-width: 0 !important; /* Empêche l'agrandissement non désiré du conteneur flex */
+                margin: 0 !important;
+            }
+            .ug-tv-chord-grid canvas {
+                width: 100% !important;
+                height: auto !important;
+                max-width: 100% !important;
+                display: block !important;
+            }
             
-            /* Plus besoin de scale individuel, les éléments reprennent leur marge normale */
-            body.ug-tv-active .ug-tv-aside canvas, body.ug-tv-active .ug-tv-aside svg { margin: 10px !important; } 
-            body.ug-tv-dark-mode .ug-tv-aside canvas, body.ug-tv-dark-mode .ug-tv-aside svg { filter: invert(1) hue-rotate(180deg) brightness(1.5) !important; }
-            body.ug-tv-active .ug-tv-aside button:has(svg), body.ug-tv-active .ug-tv-aside button[aria-label] { display: none !important; }
+            /* Polyfill Tailwind pour Chord Generator */
+            .bg-white { background-color: #ffffff; }
+            .border { border: 1px solid #e5e7eb; }
+            .text-gray-800 { color: #1f2937; }
+            .shadow-sm { box-shadow: 0 1px 2px 0 rgba(0,0,0,0.05); }
+            .rounded-lg { border-radius: 0.5rem; }
+            .p-2 { padding: 0.5rem; }
             
+            html.dark .dark\\:bg-gray-800 { background-color: #1f2937 !important; border-color: #374151 !important; }
+            html.dark .dark\\:text-gray-100 { color: #f3f4f6 !important; }
+            html.dark .dark\\:text-gray-200 { color: #e5e7eb !important; }
+            html.dark .dark\\:text-gray-500 { color: #6b7280 !important; }
+            html.dark .dark\\:bg-gray-700\\/90 { background-color: rgba(55, 65, 81, 0.9) !important; }
+            /* ------------------------------------------------ */
+
             .ug-btn { display: flex; align-items: center; gap: 8px; background: rgba(0,0,0,0.4); color: ${TXT_WHITE}; padding: 10px 18px; border: 1px solid rgba(255,255,255,0.15); border-radius: 20px; cursor: pointer; font-size: 14px; font-weight: 500; transition: all 0.2s; font-family: sans-serif; outline: none; }
             .ug-btn.ug-tv-active-opt { background: ${UG_YELLOW}; border-color: ${UG_YELLOW}; color: ${BG_DARK}; font-weight: bold; }
             .ug-btn-group { display: flex; align-items: center; background: rgba(0,0,0,0.6); border-radius: 20px; padding: 4px; box-shadow: inset 0 1px 3px rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.1); }
@@ -863,7 +956,6 @@
     }
 
     if (preEl) preEl.classList.add("ug-tv-tab", "ug-tv-keep");
-    if (asideEl) asideEl.classList.add("ug-tv-aside", "ug-tv-keep");
     [h1ElToKeep, preEl, asideEl].filter(Boolean).forEach((el) => {
       let current = el.parentElement;
       while (current && current !== document.body) {
@@ -919,8 +1011,6 @@
     autoFitOverlay.innerHTML = `<div class="ug-autofit-spinner"></div><div class="ug-autofit-text">Auto-Fit...</div>`;
     document.body.appendChild(autoFitOverlay);
 
-    if (isDark) document.body.classList.add("ug-tv-dark-mode");
-    if (!isAsideVisible) document.body.classList.add("ug-tv-hide-aside");
     document.getElementById("ug-btn-theme").innerText = isDark ? "☀️ Clair" : "🌙 Sombre";
     document.getElementById("ug-btn-aside").innerText = isAsideVisible ? "Accords ON" : "Accords OFF";
 
@@ -1033,10 +1123,6 @@
       savePrefs();
     }
 
-    // =========================================================
-    // LOGIQUE: AUTO-FIT "LIVE" AVEC SETINTERVAL
-    // ET RÉDUCTION ADAPTATIVE DES COLONNES
-    // =========================================================
     function autoFit() {
       if (!isTVMode) return;
       currentFont = 35;
@@ -1054,18 +1140,16 @@
             currentFont -= 0.1;
             applyStyles();
           } else {
-            // Terminé au minimum possible
             clearInterval(fitInterval);
             autoFitOverlay.style.display = "none";
             savePrefs();
           }
         } else {
-          // Plus de débordement, l'ajustement est parfait !
           clearInterval(fitInterval);
           autoFitOverlay.style.display = "none";
           savePrefs();
         }
-      }, 30); // 30 millisecondes = animation visuelle très rapide et fluide
+      }, 30);
     }
 
     function activateTabTV() {
@@ -1085,6 +1169,9 @@
 
       isMenuFocused = false;
       hideDock();
+
+      setTimeout(() => updateCustomChords(prefs.inst), 500);
+
       setTimeout(autoFit, 400);
     }
 
@@ -1112,6 +1199,7 @@
       e.currentTarget.innerText = instLabels[prefs.inst];
       forceInstrument(prefs.inst);
       savePrefs();
+      setTimeout(() => updateCustomChords(prefs.inst), 500);
     });
 
     document.getElementById("ug-btn-aside").addEventListener("click", (e) => {
@@ -1132,8 +1220,10 @@
     document.getElementById("ug-btn-theme").addEventListener("click", (e) => {
       isDark = !isDark;
       document.body.classList.toggle("ug-tv-dark-mode", isDark);
+      document.documentElement.classList.toggle("dark", isDark);
       e.currentTarget.innerText = isDark ? "☀️ Clair" : "🌙 Sombre";
       savePrefs();
+      updateCustomChords(prefs.inst);
     });
 
     document.getElementById("ug-font-plus").addEventListener("click", () => {
