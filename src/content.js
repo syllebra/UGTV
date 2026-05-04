@@ -669,36 +669,6 @@
 
     const preEl = document.querySelector("pre") || document.querySelector("code");
 
-    let originalAside = document.querySelector("aside");
-
-    if (!originalAside) {
-      let instTab = document.querySelector('[data-key="guitar"], [data-key="ukulele"], [data-key="piano"]');
-      if (instTab) {
-        originalAside = instTab.closest("section, aside, div");
-        if (originalAside && !originalAside.querySelector("canvas")) {
-          originalAside = instTab.parentElement.parentElement.parentElement.parentElement;
-        }
-      }
-    }
-
-    if (!originalAside) {
-      const headings = Array.from(document.querySelectorAll("h2, h3, span, div")).filter((el) => {
-        const txt = (el.textContent || "").trim().toLowerCase();
-        return txt === "accords" || txt === "chords";
-      });
-      for (let h of headings) {
-        let parent = h.closest("section, aside, div");
-        if (parent && parent.querySelector("canvas, svg")) {
-          originalAside = parent;
-          break;
-        }
-      }
-    }
-
-    if (originalAside) {
-      originalAside.classList.add("ug-tv-hidden-original");
-    }
-
     // Création du nouveau panneau géré par ChordGenerator
     let asideEl = document.createElement("div");
     asideEl.id = "ug-tv-custom-chord-panel";
@@ -745,56 +715,17 @@
       document.documentElement.classList.remove("dark");
     }
 
-    document.addEventListener("click", (e) => {
-      const btn = e.target.closest('button, [role="button"], span, a');
-      if (btn && !btn.closest("#ug-tv-toolbar") && !btn.closest("#ug-tv-launcher")) {
-        const text = (btn.textContent || btn.innerText || "").toLowerCase();
-        if (text.length > 3 && text.length < 20) {
-          if (text.includes("guit")) prefs.inst = "guitar";
-          else if (text.includes("ukul")) prefs.inst = "ukulele";
-          else if (text.includes("pian")) prefs.inst = "piano";
-          else return;
-          savePrefs();
-          const toolbarBtn = document.getElementById("ug-btn-inst");
-          if (toolbarBtn) toolbarBtn.innerText = instLabels[prefs.inst];
-          setTimeout(() => updateCustomChords(prefs.inst), 200);
-        }
-      }
-    });
-
     function forceInstrument(instName) {
-      let attempts = 0;
-      const poller = setInterval(() => {
-        attempts++;
-        const elements = Array.from(document.querySelectorAll('button, [role="button"], span, a'));
-        const target = elements.find((el) => {
-          if (el.closest("#ug-tv-toolbar") || el.closest("#ug-tv-launcher")) return false;
-          const text = (el.textContent || el.innerText || "").toLowerCase().trim();
-          return (
-            text.length > 3 &&
-            text.length < 20 &&
-            ((instName === "guitar" && text.includes("guit")) ||
-              (instName === "ukulele" && text.includes("ukul")) ||
-              (instName === "piano" && text.includes("pian")))
-          );
-        });
+      if (instName === "staff" || instName === "piano") return; // Pas d'équivalent clicable pour staff
 
-        if (target) {
-          const trigger = (type, Constructor) => {
-            target.dispatchEvent(new Constructor(type, { bubbles: true, cancelable: true, view: window }));
-          };
-          try {
-            trigger("pointerdown", PointerEvent);
-            trigger("mousedown", MouseEvent);
-            trigger("pointerup", PointerEvent);
-            trigger("mouseup", MouseEvent);
-          } catch (e) {}
-          if (target.click) target.click();
-          clearInterval(poller);
-        } else if (attempts > 15) {
-          clearInterval(poller);
-        }
-      }, 300);
+      // On cherche le bouton qui contient le nom de l'instrument dans le texte
+      const buttons = Array.from(document.querySelectorAll('button, [role="button"], a'));
+      const target = buttons.find((el) => {
+        const txt = el.textContent.toLowerCase();
+        return txt.includes(instName) && !el.closest("#ug-tv-toolbar");
+      });
+
+      if (target) target.click();
     }
 
     function updateCustomChords(inst) {
@@ -909,7 +840,6 @@
             body.ug-tv-active .ug-tv-tab { position: fixed !important; top: 100px !important; left: 0 !important; width: calc(100vw - var(--tv-aside-w)) !important; height: calc(100vh - 100px) !important; padding: 0 40px 40px 40px !important; box-sizing: border-box !important; z-index: 999998 !important; column-count: var(--tv-cols, 3) !important; column-gap: 60px !important; column-rule: 2px solid #555 !important; font-size: var(--tv-font, 18px) !important; line-height: 1.5 !important; overflow-x: auto !important; overflow-y: hidden !important; column-fill: auto !important; background: var(--tv-bg) !important; color: var(--tv-txt) !important; scroll-behavior: smooth; }
             body.ug-tv-active .ug-tv-tab span[style*="color"] { color: var(--tv-accent) !important; font-weight: bold !important; }
             
-            body.ug-tv-active .ug-tv-hidden-original { display: none !important; }
             body.ug-tv-active #ug-tv-custom-chord-panel {
                 position: fixed !important; 
                 top: 0 !important; 
@@ -1270,13 +1200,19 @@
     });
 
     document.getElementById("ug-btn-inst").addEventListener("click", (e) => {
+      // 1. Rotation de l'instrument dans tes préférences
       let idx = instruments.indexOf(prefs.inst);
       idx = (idx + 1) % instruments.length;
       prefs.inst = instruments[idx];
+
+      // 2. Mise à jour de l'UI du bouton
       e.currentTarget.innerText = instLabels[prefs.inst];
+
+      // 3. Action : On force le clic sur le site original (optionnel)
+      // ET on rafraîchit ton panneau immédiatement
       forceInstrument(prefs.inst);
       savePrefs();
-      setTimeout(() => updateCustomChords(prefs.inst), 500);
+      updateCustomChords(prefs.inst);
     });
 
     document.getElementById("ug-btn-aside").addEventListener("click", (e) => {
