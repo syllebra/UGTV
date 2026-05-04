@@ -712,8 +712,10 @@
       aside: true,
       dark: false,
       inst: "guitar",
+      tunings: { guitar: "guitar_standard", ukulele: "ukulele_standard" }, // Ajout pour mémoriser l'accordage
     };
-    if (!["guitar", "ukulele", "piano"].includes(prefs.inst)) prefs.inst = "guitar";
+    if (!["guitar", "ukulele", "piano", "staff"].includes(prefs.inst)) prefs.inst = "guitar";
+    if (!prefs.tunings) prefs.tunings = { guitar: "guitar_standard", ukulele: "ukulele_standard" };
 
     let isTVMode = false;
     let currentFont = prefs.font;
@@ -721,11 +723,18 @@
     let isAsideVisible = prefs.aside;
     let isDark = prefs.dark;
 
-    const instruments = ["guitar", "ukulele", "piano"];
-    const instLabels = { guitar: "Guitare", ukulele: "Ukulélé", piano: "Piano" };
+    const instruments = ["guitar", "ukulele", "piano", "staff"]; // Ajout de staff
+    const instLabels = { guitar: "Guitare", ukulele: "Ukulélé", piano: "Piano", staff: "Partition" };
 
     function savePrefs() {
-      prefs = { font: currentFont, cols: currentCols, aside: isAsideVisible, dark: isDark, inst: prefs.inst };
+      prefs = {
+        font: currentFont,
+        cols: currentCols,
+        aside: isAsideVisible,
+        dark: isDark,
+        inst: prefs.inst,
+        tunings: prefs.tunings,
+      };
       localStorage.setItem(tabKey, JSON.stringify(prefs));
     }
 
@@ -809,22 +818,57 @@
 
       const chordString = Array.from(chords).join(",");
 
-      let tuningMap = {
-        guitar: "guitar_standard",
-        ukulele: "ukulele_standard",
-        piano: "piano",
-      };
+      let tuningToUse = "guitar_standard";
+      let rType = "instrument";
 
-      asideEl.innerHTML = `<h2 style="margin: 0 0 20px 0; color: ${UG_YELLOW}; font-family: sans-serif; text-align: center; font-size: 1.5em; border-bottom: 1px solid #333; padding-bottom: 15px;">Accords</h2>`;
+      if (inst === "staff") {
+        rType = "staff";
+        tuningToUse = "piano"; // Sans importance pour la partition
+      } else if (inst === "piano") {
+        tuningToUse = "piano";
+      } else {
+        tuningToUse = prefs.tunings[inst] || `${inst}_standard`;
+      }
+
+      // 1. Suppression du nom "accord en haut du panneau" (plus de h2)
+      asideEl.innerHTML = "";
 
       const container = document.createElement("div");
       asideEl.appendChild(container);
 
       new ChordGenerator(container, chordString, {
-        tuning: tuningMap[inst] || "guitar_standard",
-        size: 130, // Taille idéale pour forcer deux colonnes adaptatives[cite: 2]
+        tuning: tuningToUse,
+        renderType: rType, // 2. Gestion native du mode "partition"
+        size: 80,
         displayMode: "notes",
       });
+
+      updateTuningDropdown(inst);
+    }
+
+    // Nouvelle fonction pour gérer l'affichage de la dropdown d'accordage
+    function updateTuningDropdown(inst) {
+      const select = document.getElementById("ug-tuning-select");
+      if (!select) return;
+      select.innerHTML = "";
+
+      if (inst !== "guitar" && inst !== "ukulele") {
+        select.style.display = "none";
+        return;
+      }
+
+      select.style.display = "block";
+      const prefix = `${inst}_`;
+
+      for (const [key, label] of Object.entries(TUNING_LABELS)) {
+        if (key.startsWith(prefix)) {
+          const opt = document.createElement("option");
+          opt.value = key;
+          opt.innerText = label;
+          if (prefs.tunings[inst] === key) opt.selected = true;
+          select.appendChild(opt);
+        }
+      }
     }
 
     const style = document.createElement("style");
@@ -835,7 +879,7 @@
                 --tv-bg-alt: #f4f5f6; 
                 --tv-txt: ${BG_DARK}; 
                 --tv-accent: ${UG_YELLOW}; 
-                --tv-aside-w: 340px; /* Plus grand pour accommoder confortablement 2 colonnes */
+                --tv-aside-w: max(180px, 20vw);
             }
             body.ug-tv-active, body.ug-tv-active *,
             body.ug-tv-list-active, body.ug-tv-list-active * {
@@ -933,10 +977,9 @@
             #ug-tv-custom-chord-panel h3 { margin: 0 !important; padding: 0 !important; text-align: center !important;}
             #ug-tv-custom-chord-panel button { margin: 0 !important; padding: 0 !important; display: flex !important; align-items: center !important; justify-content: center !important; }
             
-            #ug-tv-custom-chord-panel .bg-white { background-color: #ffffff !important; }
-            #ug-tv-custom-chord-panel .bg-white\\/80 { background-color: rgba(255,255,255,0.8) !important; }
-            #ug-tv-custom-chord-panel .bg-white\\/90 { background-color: rgba(255,255,255,0.9) !important; }
-            #ug-tv-custom-chord-panel .text-gray-800 { color: #1f2937 !important; }
+            #ug-tv-custom-chord-panel .bg-white { background-color: transparent !important; }
+            #ug-tv-custom-chord-panel .bg-white\\/80 { background-color: var(--tv-bg) !important; }
+            #ug-tv-custom-chord-panel .bg-white\\/90 { background-color: var(--tv-bg-alt) !important; }            #ug-tv-custom-chord-panel .text-gray-800 { color: #1f2937 !important; }
             #ug-tv-custom-chord-panel .text-gray-700 { color: #374151 !important; }
             #ug-tv-custom-chord-panel .text-gray-600 { color: #4b5563 !important; }
             #ug-tv-custom-chord-panel .text-gray-400 { color: #9ca3af !important; }
@@ -944,16 +987,16 @@
             #ug-tv-custom-chord-panel .border { border-width: 1px !important; border-style: solid !important; }
             #ug-tv-custom-chord-panel .shadow-sm { box-shadow: 0 1px 2px 0 rgba(0,0,0,0.05) !important; }
             
-            html.dark #ug-tv-custom-chord-panel .dark\\:bg-gray-800 { background-color: #1f2937 !important; border-color: #374151 !important; }
-            html.dark #ug-tv-custom-chord-panel .dark\\:bg-gray-800\\/80 { background-color: rgba(31, 41, 55, 0.8) !important; }
-            html.dark #ug-tv-custom-chord-panel .dark\\:bg-gray-700\\/90 { background-color: rgba(55, 65, 81, 0.9) !important; }
-            html.dark #ug-tv-custom-chord-panel .dark\\:text-gray-100 { color: #f3f4f6 !important; }
-            html.dark #ug-tv-custom-chord-panel .dark\\:text-gray-200 { color: #e5e7eb !important; }
-            html.dark #ug-tv-custom-chord-panel .dark\\:text-gray-300 { color: #d1d5db !important; }
-            html.dark #ug-tv-custom-chord-panel .dark\\:text-gray-500 { color: #6b7280 !important; }
-            html.dark #ug-tv-custom-chord-panel .dark\\:border-gray-600 { border-color: #4b5563 !important; }
-            html.dark #ug-tv-custom-chord-panel .dark\\:border-gray-700 { border-color: #374151 !important; }
-            /* ------------------------------------------------ */
+            html.dark #ug-tv-custom-chord-panel .dark\\:bg-gray-800 { background-color: var(--tv-bg) !important; border-color: rgba(255, 255, 255, 0.1) !important; }
+            html.dark #ug-tv-custom-chord-panel .dark\\:bg-gray-800\\/80 { background-color: rgba(17, 17, 17, 0.8) !important; }
+            html.dark #ug-tv-custom-chord-panel .dark\\:bg-gray-700\\/90 { background-color: rgba(34, 34, 34, 0.9) !important; }
+            html.dark #ug-tv-custom-chord-panel .dark\\:text-gray-100 { color: #ffffff !important; }
+            html.dark #ug-tv-custom-chord-panel .dark\\:text-gray-200 { color: #dddddd !important; }
+            html.dark #ug-tv-custom-chord-panel .dark\\:text-gray-300 { color: #cccccc !important; }
+            html.dark #ug-tv-custom-chord-panel .dark\\:text-gray-400 { color: #aaaaaa !important; }
+            html.dark #ug-tv-custom-chord-panel .dark\\:text-gray-500 { color: #888888 !important; }
+            html.dark #ug-tv-custom-chord-panel .dark\\:border-gray-600 { border-color: rgba(255, 255, 255, 0.15) !important; }
+            html.dark #ug-tv-custom-chord-panel .dark\\:border-gray-700 { border-color: rgba(255, 255, 255, 0.1) !important; }            /* ------------------------------------------------ */
 
             .ug-btn { display: flex; align-items: center; gap: 8px; background: rgba(0,0,0,0.4); color: ${TXT_WHITE}; padding: 10px 18px; border: 1px solid rgba(255,255,255,0.15); border-radius: 20px; cursor: pointer; font-size: 14px; font-weight: 500; transition: all 0.2s; font-family: sans-serif; outline: none; }
             .ug-btn.ug-tv-active-opt { background: ${UG_YELLOW}; border-color: ${UG_YELLOW}; color: ${BG_DARK}; font-weight: bold; }
@@ -1020,6 +1063,7 @@
 
     toolbar.innerHTML = `
             <button id="ug-btn-inst" class="ug-btn ug-tv-active-opt" style="width:125px; justify-content:center;">${instLabels[prefs.inst]}</button>
+            <select id="ug-tuning-select" class="ug-btn" style="display:none; max-width: 170px; cursor:pointer; appearance: none; -webkit-appearance: none; padding-right: 25px; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;"></select>
             <button id="ug-btn-theme" class="ug-btn">Sombre</button>
             <button id="ug-btn-aside" class="ug-btn ug-tv-active-opt">Accords ON</button>
             <div class="ug-btn-group">
@@ -1278,6 +1322,15 @@
       autoFit();
     });
     document.getElementById("ug-btn-auto").addEventListener("click", autoFit);
+
+    const tuningSelect = document.getElementById("ug-tuning-select");
+    if (tuningSelect) {
+      tuningSelect.addEventListener("change", (e) => {
+        prefs.tunings[prefs.inst] = e.target.value;
+        savePrefs();
+        updateCustomChords(prefs.inst);
+      });
+    }
 
     applyStyles();
 

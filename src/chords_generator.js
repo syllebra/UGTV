@@ -106,7 +106,7 @@ class ChordGenerator {
 
     gridWrapper.style.display = "grid";
     gridWrapper.style.gridTemplateColumns = `repeat(auto-fill, minmax(${minSize}px, 1fr))`;
-    gridWrapper.style.gap = "1.5rem";
+    gridWrapper.style.gap = "0.7rem";
     this.container.appendChild(gridWrapper);
 
     const chords = this.chordSequence.split(",").map((s) => this.parseChordString(s));
@@ -151,8 +151,7 @@ class ChordGenerator {
     const displayLabel = this.options.displayMode === "notes" ? "Notes" : "Intervalles";
 
     titleDiv.innerHTML = `
-            <span>🎸 Instrument/Vue: <span class="text-gray-600 dark:text-gray-300">${modeLabel}</span></span>
-            <span>🏷️ Affichage: <span class="text-gray-600 dark:text-gray-300">${displayLabel}</span></span>
+            <span><span class="text-gray-600 dark:text-gray-300">${modeLabel}</span></span>
         `;
     this.container.appendChild(titleDiv);
   }
@@ -537,27 +536,29 @@ class ChordGenerator {
   }
 
   getCanvasColors() {
-    const isDark = document.documentElement.classList.contains("dark");
+    const isDark =
+      document.documentElement.classList.contains("dark") || document.body.classList.contains("ug-tv-dark-mode");
+
     return isDark
       ? {
-          bg: "#1f2937",
-          fret: "#4b5563",
-          fretNum: "#9ca3af",
-          nut: "#d1d5db",
-          string: "#4b5563",
-          stringText: "#9ca3af",
-          barre: "rgba(156, 163, 175, 0.3)",
-          marker: "#f3f4f6",
-          markerText: "#1f2937",
-          noteText: "#d1d5db",
-          pianoWhite: "#374151",
-          pianoStroke: "#1f2937",
-          pianoBlack: "#111827",
-          staffLine: "#4b5563",
-          staffClef: "#9ca3af",
+          bg: "transparent", // Fond transparent pour hériter de la carte
+          fret: "#555555",
+          fretNum: "#888888",
+          nut: "#dddddd", // Sillet neutre (blanc cassé)
+          string: "#666666",
+          stringText: "#888888",
+          barre: "rgba(255, 255, 255, 0.2)",
+          marker: "#eeeeee", // Marqueur neutre
+          markerText: "#111111",
+          noteText: "#dddddd",
+          pianoWhite: "#dddddd",
+          pianoStroke: "#222222",
+          pianoBlack: "#111111",
+          staffLine: "#777777",
+          staffClef: "#dddddd",
         }
       : {
-          bg: "#fafafa",
+          bg: "transparent",
           fret: "#9ca3af",
           fretNum: "#4b5563",
           nut: "#374151",
