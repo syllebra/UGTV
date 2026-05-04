@@ -365,7 +365,7 @@
       });
 
       let currentPage = 1;
-      const urlPageMatch = window.location.href.match(/[?&]page=(\d+)/);
+      const urlPageMatch = window.location.href.match(/[?&page=(\d+)]/);
       if (urlPageMatch) currentPage = parseInt(urlPageMatch[1], 10);
 
       const allPageLinks = Array.from(document.querySelectorAll("a")).filter(
@@ -722,7 +722,7 @@
     let isDark = prefs.dark;
 
     const instruments = ["guitar", "ukulele", "piano"];
-    const instLabels = { guitar: "🎸 Guitare", ukulele: "🎸 Ukulélé", piano: "🎹 Piano" };
+    const instLabels = { guitar: "Guitare", ukulele: "Ukulélé", piano: "Piano" };
 
     function savePrefs() {
       prefs = { font: currentFont, cols: currentCols, aside: isAsideVisible, dark: isDark, inst: prefs.inst };
@@ -818,13 +818,11 @@
       asideEl.innerHTML = `<h2 style="margin: 0 0 20px 0; color: ${UG_YELLOW}; font-family: sans-serif; text-align: center; font-size: 1.5em; border-bottom: 1px solid #333; padding-bottom: 15px;">Accords</h2>`;
 
       const container = document.createElement("div");
-      // Ajout de la classe qui force la grille responsive dans le panneau
-      container.className = "ug-tv-chord-grid";
       asideEl.appendChild(container);
 
       new ChordGenerator(container, chordString, {
         tuning: tuningMap[inst] || "guitar_standard",
-        size: 110,
+        size: 130, // Taille idéale pour forcer deux colonnes adaptatives[cite: 2]
         displayMode: "notes",
       });
     }
@@ -837,7 +835,7 @@
                 --tv-bg-alt: #f4f5f6; 
                 --tv-txt: ${BG_DARK}; 
                 --tv-accent: ${UG_YELLOW}; 
-                --tv-aside-w: 300px; 
+                --tv-aside-w: 340px; /* Plus grand pour accommoder confortablement 2 colonnes */
             }
             body.ug-tv-active, body.ug-tv-active *,
             body.ug-tv-list-active, body.ug-tv-list-active * {
@@ -888,38 +886,73 @@
                 visibility: visible !important;
             }
 
-            /* ---> FORCER LA GRILLE RESPONSIVE POUR CHORD GENERATOR <--- */
-            .ug-tv-chord-grid {
-                display: grid !important;
-                grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)) !important;
-                gap: 15px !important;
-                width: 100% !important;
-            }
-            .ug-tv-chord-grid > div {
-                width: 100% !important;
-                min-width: 0 !important; /* Empêche l'agrandissement non désiré du conteneur flex */
-                margin: 0 !important;
-            }
-            .ug-tv-chord-grid canvas {
-                width: 100% !important;
-                height: auto !important;
-                max-width: 100% !important;
-                display: block !important;
-            }
+            /* ---> POLYFILL TAILWIND POUR CHORD GENERATOR <--- */
+            #ug-tv-custom-chord-panel * { box-sizing: border-box !important; }
+            #ug-tv-custom-chord-panel .relative { position: relative !important; }
+            #ug-tv-custom-chord-panel .absolute { position: absolute !important; }
+            #ug-tv-custom-chord-panel .flex { display: flex !important; }
+            #ug-tv-custom-chord-panel .flex-col { flex-direction: column !important; }
+            #ug-tv-custom-chord-panel .items-center { align-items: center !important; }
+            #ug-tv-custom-chord-panel .justify-center { justify-content: center !important; }
+            #ug-tv-custom-chord-panel .w-full { width: 100% !important; }
+            #ug-tv-custom-chord-panel .h-auto { height: auto !important; }
+            #ug-tv-custom-chord-panel .w-6 { width: 24px !important; }
+            #ug-tv-custom-chord-panel .h-8 { height: 32px !important; }
+            #ug-tv-custom-chord-panel .top-1\\/2 { top: 50% !important; }
+            #ug-tv-custom-chord-panel .-translate-y-1\\/2 { transform: translateY(-50%) !important; }
+            #ug-tv-custom-chord-panel .-left-2 { left: -8px !important; }
+            #ug-tv-custom-chord-panel .-right-2 { right: -8px !important; }
+            #ug-tv-custom-chord-panel .top-2 { top: 8px !important; }
+            #ug-tv-custom-chord-panel .left-2 { left: 8px !important; }
+            #ug-tv-custom-chord-panel .mt-1 { margin-top: 4px !important; }
+            #ug-tv-custom-chord-panel .mb-0 { margin-bottom: 0 !important; }
+            #ug-tv-custom-chord-panel .mb-4 { margin-bottom: 16px !important; }
+            #ug-tv-custom-chord-panel .z-0 { z-index: 0 !important; }
+            #ug-tv-custom-chord-panel .z-10 { z-index: 10 !important; }
+            #ug-tv-custom-chord-panel .opacity-0 { opacity: 0 !important; transition: opacity 0.2s !important; }
+            #ug-tv-custom-chord-panel .group:hover .group-hover\\:opacity-100 { opacity: 1 !important; }
+            #ug-tv-custom-chord-panel .pointer-events-none { pointer-events: none !important; }
             
-            /* Polyfill Tailwind pour Chord Generator */
-            .bg-white { background-color: #ffffff; }
-            .border { border: 1px solid #e5e7eb; }
-            .text-gray-800 { color: #1f2937; }
-            .shadow-sm { box-shadow: 0 1px 2px 0 rgba(0,0,0,0.05); }
-            .rounded-lg { border-radius: 0.5rem; }
-            .p-2 { padding: 0.5rem; }
+            #ug-tv-custom-chord-panel .rounded-lg { border-radius: 8px !important; }
+            #ug-tv-custom-chord-panel .rounded { border-radius: 4px !important; }
+            #ug-tv-custom-chord-panel .p-2 { padding: 8px !important; }
+            #ug-tv-custom-chord-panel .pb-1 { padding-bottom: 4px !important; }
+            #ug-tv-custom-chord-panel .px-1 { padding-left: 4px !important; padding-right: 4px !important; }
+            #ug-tv-custom-chord-panel .text-lg { font-size: 18px !important; }
+            #ug-tv-custom-chord-panel .font-bold { font-weight: bold !important; }
+            #ug-tv-custom-chord-panel .font-medium { font-weight: 500 !important; }
+            #ug-tv-custom-chord-panel .text-\\[10px\\] { font-size: 10px !important; }
+            #ug-tv-custom-chord-panel .text-\\[11px\\] { font-size: 11px !important; }
+            #ug-tv-custom-chord-panel .uppercase { text-transform: uppercase !important; }
+            #ug-tv-custom-chord-panel .tracking-wider { letter-spacing: 0.05em !important; }
+            #ug-tv-custom-chord-panel .flex-wrap { flex-wrap: wrap !important; }
+            #ug-tv-custom-chord-panel .gap-3 { gap: 12px !important; }
+            #ug-tv-custom-chord-panel .leading-none { line-height: 1 !important; }
             
-            html.dark .dark\\:bg-gray-800 { background-color: #1f2937 !important; border-color: #374151 !important; }
-            html.dark .dark\\:text-gray-100 { color: #f3f4f6 !important; }
-            html.dark .dark\\:text-gray-200 { color: #e5e7eb !important; }
-            html.dark .dark\\:text-gray-500 { color: #6b7280 !important; }
-            html.dark .dark\\:bg-gray-700\\/90 { background-color: rgba(55, 65, 81, 0.9) !important; }
+            /* Surcharges spécifiques pour forcer le comportement propre */
+            #ug-tv-custom-chord-panel h3 { margin: 0 !important; padding: 0 !important; text-align: center !important;}
+            #ug-tv-custom-chord-panel button { margin: 0 !important; padding: 0 !important; display: flex !important; align-items: center !important; justify-content: center !important; }
+            
+            #ug-tv-custom-chord-panel .bg-white { background-color: #ffffff !important; }
+            #ug-tv-custom-chord-panel .bg-white\\/80 { background-color: rgba(255,255,255,0.8) !important; }
+            #ug-tv-custom-chord-panel .bg-white\\/90 { background-color: rgba(255,255,255,0.9) !important; }
+            #ug-tv-custom-chord-panel .text-gray-800 { color: #1f2937 !important; }
+            #ug-tv-custom-chord-panel .text-gray-700 { color: #374151 !important; }
+            #ug-tv-custom-chord-panel .text-gray-600 { color: #4b5563 !important; }
+            #ug-tv-custom-chord-panel .text-gray-400 { color: #9ca3af !important; }
+            #ug-tv-custom-chord-panel .border-gray-200 { border-color: #e5e7eb !important; }
+            #ug-tv-custom-chord-panel .border { border-width: 1px !important; border-style: solid !important; }
+            #ug-tv-custom-chord-panel .shadow-sm { box-shadow: 0 1px 2px 0 rgba(0,0,0,0.05) !important; }
+            
+            html.dark #ug-tv-custom-chord-panel .dark\\:bg-gray-800 { background-color: #1f2937 !important; border-color: #374151 !important; }
+            html.dark #ug-tv-custom-chord-panel .dark\\:bg-gray-800\\/80 { background-color: rgba(31, 41, 55, 0.8) !important; }
+            html.dark #ug-tv-custom-chord-panel .dark\\:bg-gray-700\\/90 { background-color: rgba(55, 65, 81, 0.9) !important; }
+            html.dark #ug-tv-custom-chord-panel .dark\\:text-gray-100 { color: #f3f4f6 !important; }
+            html.dark #ug-tv-custom-chord-panel .dark\\:text-gray-200 { color: #e5e7eb !important; }
+            html.dark #ug-tv-custom-chord-panel .dark\\:text-gray-300 { color: #d1d5db !important; }
+            html.dark #ug-tv-custom-chord-panel .dark\\:text-gray-500 { color: #6b7280 !important; }
+            html.dark #ug-tv-custom-chord-panel .dark\\:border-gray-600 { border-color: #4b5563 !important; }
+            html.dark #ug-tv-custom-chord-panel .dark\\:border-gray-700 { border-color: #374151 !important; }
             /* ------------------------------------------------ */
 
             .ug-btn { display: flex; align-items: center; gap: 8px; background: rgba(0,0,0,0.4); color: ${TXT_WHITE}; padding: 10px 18px; border: 1px solid rgba(255,255,255,0.15); border-radius: 20px; cursor: pointer; font-size: 14px; font-weight: 500; transition: all 0.2s; font-family: sans-serif; outline: none; }
