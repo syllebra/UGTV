@@ -142,6 +142,7 @@
       "ug-tv-hide-aside",
       "ug-tv-show-cursor",
       "ug-tv-list-active",
+      "ug-tv-chords-horizontal",
     );
     const elementsToRemove = [
       "ug-tv-launcher",
@@ -682,7 +683,8 @@
       aside: true,
       dark: false,
       inst: "guitar",
-      tunings: { guitar: "guitar_standard", ukulele: "ukulele_standard" }, // Ajout pour mémoriser l'accordage
+      tunings: { guitar: "guitar_standard", ukulele: "ukulele_standard" },
+      chordsLayout: "vertical",
     };
     if (!["guitar", "ukulele", "piano", "staff"].includes(prefs.inst)) prefs.inst = "guitar";
     if (!prefs.tunings) prefs.tunings = { guitar: "guitar_standard", ukulele: "ukulele_standard" };
@@ -691,6 +693,7 @@
     let currentFont = prefs.font;
     let currentCols = prefs.cols;
     let isAsideVisible = prefs.aside;
+    let chordsLayout = prefs.chordsLayout || "vertical";
     let isDark = prefs.dark;
 
     const instruments = ["guitar", "ukulele", "piano", "staff"]; // Ajout de staff
@@ -704,6 +707,7 @@
         dark: isDark,
         inst: prefs.inst,
         tunings: prefs.tunings,
+        chordsLayout: chordsLayout,
       };
       localStorage.setItem(tabKey, JSON.stringify(prefs));
     }
@@ -761,18 +765,47 @@
         tuningToUse = prefs.tunings[inst] || `${inst}_standard`;
       }
 
-      // 1. Suppression du nom "accord en haut du panneau" (plus de h2)
       asideEl.innerHTML = "";
 
       const container = document.createElement("div");
       asideEl.appendChild(container);
 
+      const chordSize = chordsLayout === "horizontal" ? 55 : 80;
+
       new ChordGenerator(container, chordString, {
         tuning: tuningToUse,
-        renderType: rType, // 2. Gestion native du mode "partition"
-        size: 80,
+        renderType: rType,
+        size: chordSize,
         displayMode: "notes",
       });
+
+      if (chordsLayout === "horizontal") {
+        const titleDiv = container.querySelector("div");
+        if (titleDiv) {
+          titleDiv.style.cssText = "flex-shrink:0; font-size:10px; padding:4px 10px; background:rgba(255,255,255,0.1); border-radius:12px; margin:0; white-space:nowrap; align-self:center;";
+        }
+        const gridDiv = container.querySelector("div:nth-child(2)");
+        if (gridDiv) {
+          gridDiv.style.display = "flex";
+          gridDiv.style.flexDirection = "row";
+          gridDiv.style.flexWrap = "nowrap";
+          gridDiv.style.overflowX = "auto";
+          gridDiv.style.gap = "10px";
+          gridDiv.style.alignItems = "center";
+          gridDiv.style.paddingBottom = "4px";
+          gridDiv.style.maxHeight = "100%";
+          gridDiv.querySelectorAll("canvas").forEach((canvas) => {
+            canvas.style.height = "calc(25vh - 60px)";
+            canvas.style.width = "auto";
+          });
+          gridDiv.querySelectorAll("*").forEach((el) => {
+            if (el.tagName === "DIV" && el.className && el.className.includes("bg-white")) {
+              el.style.flexShrink = "0";
+              el.style.maxHeight = "100%";
+            }
+          });
+        }
+      }
 
       updateTuningDropdown(inst);
     }
@@ -836,8 +869,8 @@
             body.ug-tv-active ::-webkit-scrollbar-track { background: transparent !important; }
             body.ug-tv-active ::-webkit-scrollbar-thumb { background-color: #555 !important; border-radius: 10px !important; }
             
-            body.ug-tv-active .ug-tv-title { position: fixed !important; top: 0 !important; left: 0 !important; width: calc(100vw - var(--tv-aside-w)) !important; height: auto !important; z-index: 999998 !important; padding: 20px 40px !important; box-sizing: border-box !important; background: var(--tv-bg) !important; color: var(--tv-txt) !important; display: flex; align-items: center;}
-            body.ug-tv-active .ug-tv-tab { position: fixed !important; top: 100px !important; left: 0 !important; width: calc(100vw - var(--tv-aside-w)) !important; height: calc(100vh - 100px) !important; padding: 0 40px 40px 40px !important; box-sizing: border-box !important; z-index: 999998 !important; column-count: var(--tv-cols, 3) !important; column-gap: 60px !important; column-rule: 2px solid #555 !important; font-size: var(--tv-font, 18px) !important; line-height: 1.5 !important; overflow-x: auto !important; overflow-y: hidden !important; column-fill: auto !important; background: var(--tv-bg) !important; color: var(--tv-txt) !important; scroll-behavior: smooth; }
+            body.ug-tv-active .ug-tv-title { position: fixed !important; top: 0 !important; left: 0 !important; width: calc(100vw - var(--tv-aside-w)) !important; height: auto !important; min-height: 42px !important; z-index: 999998 !important; padding: 6px 16px !important; box-sizing: border-box !important; background: var(--tv-bg) !important; color: var(--tv-txt) !important; display: flex; align-items: center;}
+            body.ug-tv-active .ug-tv-tab { position: fixed !important; top: 48px !important; left: 0 !important; width: calc(100vw - var(--tv-aside-w)) !important; height: calc(100vh - 48px) !important; padding: 0 40px 40px 40px !important; box-sizing: border-box !important; z-index: 999998 !important; column-count: var(--tv-cols, 3) !important; column-gap: 60px !important; column-rule: 2px solid #555 !important; font-size: var(--tv-font, 18px) !important; line-height: 1.5 !important; overflow-x: auto !important; overflow-y: hidden !important; column-fill: auto !important; background: var(--tv-bg) !important; color: var(--tv-txt) !important; scroll-behavior: smooth; }
             body.ug-tv-active .ug-tv-tab span[style*="color"] { color: var(--tv-accent) !important; font-weight: bold !important; }
             
             body.ug-tv-active #ug-tv-custom-chord-panel {
@@ -943,6 +976,22 @@
             .ug-tv-indicator { position: fixed; bottom: 5px; left: 50%; transform: translateX(-50%); width: 80px; height: 5px; background: rgba(150,150,150,0.6); border-radius: 3px; z-index: 9999997; pointer-events: none; transition: opacity 0.4s; }
             .ug-tv-show-cursor { cursor: default !important; }
 
+            body.ug-tv-chords-horizontal .ug-tv-title { width: 100vw !important; }
+            body.ug-tv-chords-horizontal .ug-tv-tab { width: 100vw !important; height: calc(100vh - 48px - 25vh) !important; }
+            body.ug-tv-chords-horizontal #ug-tv-custom-chord-panel {
+                top: auto !important;
+                bottom: 0 !important;
+                left: 0 !important;
+                right: auto !important;
+                width: 100vw !important;
+                height: 25vh !important;
+                border-left: none !important;
+                border-top: 1.5px solid #444 !important;
+                overflow-y: hidden !important;
+                overflow-x: auto !important;
+            }
+            body.ug-tv-chords-horizontal .ug-tv-indicator { bottom: calc(25vh + 5px) !important; }
+
             #ug-autofit-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.6); z-index: 99999999; display: flex; flex-direction: column; justify-content: center; align-items: center; }
             .ug-autofit-spinner { border: 4px solid rgba(255,255,255,0.1); border-top: 4px solid ${UG_YELLOW}; border-radius: 50%; width: 50px; height: 50px; animation: ug-tv-spin 1s linear infinite; }
             .ug-autofit-text { color: ${TXT_WHITE}; font-size: 1.2em; margin-top: 20px; font-family: sans-serif; font-weight: bold; }
@@ -1019,7 +1068,7 @@
     document.body.appendChild(autoFitOverlay);
 
     document.getElementById("ug-btn-theme").innerText = isDark ? "☀️ Clair" : "🌙 Sombre";
-    document.getElementById("ug-btn-aside").innerText = isAsideVisible ? "Accords ON" : "Accords OFF";
+    document.getElementById("ug-btn-aside").innerText = !isAsideVisible ? "Accords OFF" : chordsLayout === "horizontal" ? "Accords \u2014" : "Accords |";
 
     let hideTimeout;
     let isMenuFocused = false;
@@ -1089,8 +1138,13 @@
           const scrollAside = 150;
           if (e.key === "ArrowRight" && preEl) preEl.scrollBy({ left: scrollTab });
           if (e.key === "ArrowLeft" && preEl) preEl.scrollBy({ left: -scrollTab });
-          if (e.key === "ArrowDown" && asideEl) asideEl.scrollBy({ top: scrollAside });
-          if (e.key === "ArrowUp" && asideEl) asideEl.scrollBy({ top: -scrollAside });
+          if (chordsLayout === "horizontal" && asideEl) {
+            if (e.key === "ArrowDown") asideEl.scrollBy({ left: scrollAside });
+            if (e.key === "ArrowUp") asideEl.scrollBy({ left: -scrollAside });
+          } else if (asideEl) {
+            if (e.key === "ArrowDown") asideEl.scrollBy({ top: scrollAside });
+            if (e.key === "ArrowUp") asideEl.scrollBy({ top: -scrollAside });
+          }
         }
       } else {
         if (e.key === "ArrowRight") {
@@ -1166,6 +1220,10 @@
       localStorage.setItem(GLOBAL_TV_KEY, "true");
       isGlobalTVModeOn = true;
       document.body.classList.add("ug-tv-active");
+      document.body.classList.toggle("ug-tv-hide-aside", !isAsideVisible);
+      document.body.classList.toggle("ug-tv-chords-horizontal", isAsideVisible && chordsLayout === "horizontal");
+      const asideBtn = document.getElementById("ug-btn-aside");
+      if (asideBtn) asideBtn.classList.toggle("ug-tv-active-opt", isAsideVisible);
       launcher.style.display = "none";
       toolbar.style.display = "flex";
       indicator.style.display = "block";
@@ -1193,6 +1251,7 @@
       localStorage.setItem(GLOBAL_TV_KEY, "false");
       isGlobalTVModeOn = false;
       document.body.classList.remove("ug-tv-active");
+      document.body.classList.remove("ug-tv-chords-horizontal");
       launcher.style.display = "block";
       toolbar.style.display = "none";
       indicator.style.display = "none";
@@ -1216,17 +1275,31 @@
     });
 
     document.getElementById("ug-btn-aside").addEventListener("click", (e) => {
-      isAsideVisible = !isAsideVisible;
-      if (isAsideVisible) {
-        document.body.classList.remove("ug-tv-hide-aside");
-        e.currentTarget.innerText = "Accords ON";
-        e.currentTarget.classList.add("ug-tv-active-opt");
+      if (!isAsideVisible) {
+        isAsideVisible = true;
+        chordsLayout = "vertical";
+      } else if (chordsLayout === "vertical") {
+        chordsLayout = "horizontal";
       } else {
-        document.body.classList.add("ug-tv-hide-aside");
+        isAsideVisible = false;
+      }
+
+      document.body.classList.toggle("ug-tv-hide-aside", !isAsideVisible);
+      document.body.classList.toggle("ug-tv-chords-horizontal", isAsideVisible && chordsLayout === "horizontal");
+
+      if (!isAsideVisible) {
         e.currentTarget.innerText = "Accords OFF";
         e.currentTarget.classList.remove("ug-tv-active-opt");
+      } else if (chordsLayout === "horizontal") {
+        e.currentTarget.innerText = "Accords \u2014";
+        e.currentTarget.classList.add("ug-tv-active-opt");
+      } else {
+        e.currentTarget.innerText = "Accords |";
+        e.currentTarget.classList.add("ug-tv-active-opt");
       }
+
       savePrefs();
+      updateCustomChords(prefs.inst);
       setTimeout(autoFit, 50);
     });
 
