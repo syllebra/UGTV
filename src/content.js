@@ -773,7 +773,7 @@
       const chordSize = chordsLayout === "horizontal" ? 45 : 80;
       let canvasMaxHeight = 0;
       if (chordsLayout === "horizontal") {
-        canvasMaxHeight = Math.floor(window.innerHeight * 0.2) - 24;
+        canvasMaxHeight = Math.floor(window.innerHeight * 0.16) - 24;
         if (rType === "piano") canvasMaxHeight = Math.floor(canvasMaxHeight * 0.6);
       }
 
@@ -988,15 +988,15 @@
             .ug-tv-indicator { position: fixed; bottom: 5px; left: 50%; transform: translateX(-50%); width: 80px; height: 5px; background: rgba(150,150,150,0.6); border-radius: 3px; z-index: 9999997; pointer-events: none; transition: opacity 0.4s; }
             .ug-tv-show-cursor { cursor: default !important; }
 
-            body.ug-tv-chords-horizontal .ug-tv-title { width: 100vw !important; }
-            body.ug-tv-chords-horizontal .ug-tv-tab { width: 100vw !important; top: calc(48px + 25vh) !important; height: calc(100vh - 48px - 25vh) !important; }
+            body.ug-tv-chords-horizontal .ug-tv-title { width: 100vw !important; top: 20vh !important; }
+            body.ug-tv-chords-horizontal .ug-tv-tab { width: 100vw !important; top: calc(48px + 20vh) !important; height: calc(100vh - 48px - 20vh) !important; }
             body.ug-tv-chords-horizontal #ug-tv-custom-chord-panel {
-                top: 48px !important;
+                top: 0 !important;
                 bottom: auto !important;
                 left: 0 !important;
                 right: auto !important;
                 width: 100vw !important;
-                height: 25vh !important;
+                height: 20vh !important;
                 border-left: none !important;
                 border-bottom: 1.5px solid #444 !important;
                 border-top: none !important;
