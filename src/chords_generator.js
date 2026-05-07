@@ -86,6 +86,7 @@ class ChordGenerator {
         renderType: "instrument", // 'instrument' ou 'staff'
         displayMode: "notes", // 'notes' ou 'intervals'
         size: 200,
+        canvasMaxHeight: 0, // If > 0, overrides cHeight and scales cWidth proportionally
       },
       options,
     );
@@ -163,7 +164,18 @@ class ChordGenerator {
 
     let cWidth = 400;
     let cHeight = 350;
-    if (this.options.renderType === "staff") {
+    if (this.options.canvasMaxHeight > 0) {
+      if (this.options.renderType === "staff") {
+        cHeight = this.options.canvasMaxHeight;
+        cWidth = Math.floor(cHeight * (450 / 300));
+      } else if (this.options.tuning === "piano") {
+        cHeight = this.options.canvasMaxHeight;
+        cWidth = Math.floor(cHeight * (600 / 220));
+      } else {
+        cHeight = this.options.canvasMaxHeight;
+        cWidth = Math.floor(cHeight * (400 / 350));
+      }
+    } else if (this.options.renderType === "staff") {
       cWidth = 450;
       cHeight = 300;
     } else if (this.options.tuning === "piano") {
@@ -580,67 +592,79 @@ class ChordGenerator {
     const ctx = canvas.getContext("2d");
     const cols = this.getCanvasColors();
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    const padX = 40;
-    const width = canvas.width;
-    const halfSpace = 8;
-    const centerY = canvas.height / 2;
+
+    const cw = canvas.width;
+    const ch = canvas.height;
+    const padX = Math.floor(cw * 0.04);
+    const halfSpace = Math.floor(ch * 0.043);
+    const centerY = ch / 2;
 
     ctx.fillStyle = cols.bg;
-    ctx.fillRect(padX - 20, 10, width - 2 * padX + 40, canvas.height - 20);
+    ctx.fillRect(
+      padX - Math.floor(cw * 0.044),
+      Math.floor(ch * 0.033),
+      cw - 2 * padX + Math.floor(cw * 0.088),
+      ch - Math.floor(ch * 0.066),
+    );
     ctx.strokeStyle = cols.staffLine;
-    ctx.lineWidth = 1.5;
+    ctx.lineWidth = Math.max(1, ch * 0.01);
 
     ctx.beginPath();
     for (let d of [2, 4, 6, 8, 10]) {
       let y = centerY - d * halfSpace;
       ctx.moveTo(padX, y);
-      ctx.lineTo(width - padX, y);
+      ctx.lineTo(cw - padX, y);
     }
     for (let d of [-2, -4, -6, -8, -10]) {
       let y = centerY - d * halfSpace;
       ctx.moveTo(padX, y);
-      ctx.lineTo(width - padX, y);
+      ctx.lineTo(cw - padX, y);
     }
     ctx.moveTo(padX, centerY - 10 * halfSpace);
     ctx.lineTo(padX, centerY - -10 * halfSpace);
     ctx.stroke();
 
     ctx.fillStyle = cols.staffClef;
-    ctx.font = "50px serif";
+    ctx.font = `bold ${Math.round(ch * 0.4)}px serif`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText("𝄞", padX + 20, centerY - 6 * halfSpace);
-    ctx.fillText("𝄢", padX + 20, centerY + 6 * halfSpace);
+    ctx.fillText("𝄞", padX + Math.floor(cw * 0.044), centerY - 5 * halfSpace);
+    ctx.fillText("𝄢", padX + Math.floor(cw * 0.044), centerY + 6 * halfSpace);
 
     if (!chordData || !chordData.absoluteNotes) return;
     let uniqueNotes = [...new Set(chordData.absoluteNotes.filter((n) => n > -1))].sort((a, b) => a - b);
     let diatonicMap = [0, 0, 1, 1, 2, 3, 3, 4, 4, 5, 5, 6];
-    let startX = width / 2;
+    let startX = cw / 2;
     let previousD = -999;
     let currentX = startX;
 
     ctx.fillStyle = cols.marker;
     ctx.strokeStyle = cols.marker;
-    ctx.lineWidth = 2.5;
+    ctx.lineWidth = Math.max(1, ch * 0.008);
+    const noteRx = Math.floor(cw * 0.04);
+    const noteRy = Math.floor(ch * 0.044);
+    const noteStep = Math.floor(cw * 0.08);
+    const ledgerExt = Math.floor(cw * 0.072);
+    const accXOff = Math.floor(cw * 0.052);
     uniqueNotes.forEach((midi) => {
       let octave = Math.floor(midi / 12) - 5;
       let noteClass = midi % 12;
       let d = octave * 7 + diatonicMap[noteClass];
       let y = centerY - d * halfSpace;
 
-      if (Math.abs(d - previousD) <= 1) currentX += 18;
+      if (Math.abs(d - previousD) <= 1) currentX += noteStep;
       else currentX = startX;
       previousD = d;
 
       ctx.beginPath();
-      ctx.ellipse(currentX, y, 9, 6.5, -Math.PI / 8, 0, Math.PI * 2);
+      ctx.ellipse(currentX, y, noteRx, noteRy, -Math.PI / 8, 0, Math.PI * 2);
       ctx.fill();
 
       let drawLedger = (lineD) => {
         let ly = centerY - lineD * halfSpace;
         ctx.beginPath();
-        ctx.moveTo(currentX - 16, ly);
-        ctx.lineTo(currentX + 16, ly);
+        ctx.moveTo(currentX - ledgerExt, ly);
+        ctx.lineTo(currentX + ledgerExt, ly);
         ctx.stroke();
       };
       if (d === 0) drawLedger(0);
@@ -648,10 +672,10 @@ class ChordGenerator {
       if (d <= -12) for (let ld = -12; ld >= d; ld -= 2) drawLedger(ld);
 
       if ([1, 3, 6, 8, 10].includes(noteClass)) {
-        ctx.font = "20px sans-serif";
+        ctx.font = `${Math.round(ch * 0.067) * 2}px sans-serif`;
         ctx.textAlign = "right";
         ctx.textBaseline = "middle";
-        ctx.fillText("♯", currentX - 14, y);
+        ctx.fillText("♯", currentX - accXOff, y);
       }
     });
   }
@@ -660,19 +684,23 @@ class ChordGenerator {
     const ctx = canvas.getContext("2d");
     const cols = this.getCanvasColors();
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    const cw = canvas.width;
+    const ch = canvas.height;
+
     const minNote = Math.min(...chordData.notes);
     const maxNote = Math.max(...chordData.notes);
     const baseC = Math.floor(minNote / 12) * 12;
     let topC = Math.ceil((maxNote + 1) / 12) * 12;
     let numOctaves = Math.max(2, (topC - baseC) / 12);
-    const padX = 20;
-    const keyWidth = (canvas.width - 2 * padX) / (numOctaves * 7 + 1);
-    const keyHeight = 160;
-    const startY = (canvas.height - keyHeight) / 2;
+    const padX = Math.floor(cw * 0.033);
+    const keyWidth = (cw - 2 * padX) / (numOctaves * 7 + 1);
+    const keyHeight = Math.floor(ch * 0.73);
+    const startY = (ch - keyHeight) / 2;
 
     ctx.fillStyle = cols.pianoWhite;
     ctx.strokeStyle = cols.pianoStroke;
-    ctx.lineWidth = 2;
+    ctx.lineWidth = Math.max(1, ch * 0.01);
     for (let i = 0; i < numOctaves * 7 + 1; i++) {
       ctx.fillRect(padX + i * keyWidth, startY, keyWidth, keyHeight);
       ctx.strokeRect(padX + i * keyWidth, startY, keyWidth, keyHeight);
@@ -689,21 +717,26 @@ class ChordGenerator {
     }
 
     const keyCenters = [0.5, 1, 1.5, 2, 2.5, 3.5, 4, 4.5, 5, 5.5, 6, 6.5];
+    const mRadius = Math.round(ch * 0.13);
+    const mDiam = mRadius * 2;
+    const rr = Math.round(ch * 0.025);
     chordData.notes.forEach((note) => {
       let noteInOct = (note - baseC) % 12;
       let cx = padX + Math.floor((note - baseC) / 12) * 7 * keyWidth + keyCenters[noteInOct] * keyWidth;
-      let cy = [1, 3, 6, 8, 10].includes(noteInOct) ? startY + bkH - 24 : startY + keyHeight - 32;
+      let cy = [1, 3, 6, 8, 10].includes(noteInOct)
+        ? startY + bkH - Math.floor(ch * 0.11)
+        : startY + keyHeight - Math.floor(ch * 0.136);
 
       ctx.fillStyle = cols.marker;
       ctx.beginPath();
       if (note % 12 === rootNote) {
-        if (ctx.roundRect) ctx.roundRect(cx - 14, cy - 14, 28, 28, 4);
-        else ctx.rect(cx - 14, cy - 14, 28, 28);
-      } else ctx.arc(cx, cy, 14, 0, Math.PI * 2);
+        if (ctx.roundRect) ctx.roundRect(cx - mRadius, cy - mRadius, mDiam, mDiam, rr);
+        else ctx.rect(cx - mRadius, cy - mRadius, mDiam, mDiam);
+      } else ctx.arc(cx, cy, mRadius, 0, Math.PI * 2);
       ctx.fill();
 
       ctx.fillStyle = cols.markerText;
-      ctx.font = "bold 12px sans-serif";
+      ctx.font = `bold ${Math.round(ch * 0.15)}px sans-serif`;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       ctx.fillText(this.getLabel(note % 12, rootNote, displayMode), cx, cy + 1);
@@ -721,10 +754,13 @@ class ChordGenerator {
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    const padX = canvas.width > 300 ? 50 : 30;
-    const padTop = canvas.height > 300 ? 75 : 55;
-    const padBottom = 45;
-    const stringSpacing = (canvas.width - 2 * padX) / Math.max(1, numStrings - 1);
+    const cw = canvas.width;
+    const ch = canvas.height;
+
+    const padX = Math.floor(cw * 0.125);
+    const padTop = Math.floor(ch * 0.21);
+    const padBottom = Math.floor(ch * 0.128);
+    const stringSpacing = (cw - 2 * padX) / Math.max(1, numStrings - 1);
     let playedFrets = frets.filter((f) => f > 0);
     let minFretDisplay = 1;
     let numFretsDisplay = 4;
@@ -737,33 +773,33 @@ class ChordGenerator {
         numFretsDisplay = Math.max(4, actualMax - actualMin + 1);
       }
     }
-    const fretSpacing = (canvas.height - padTop - padBottom) / numFretsDisplay;
+    const fretSpacing = (ch - padTop - padBottom) / numFretsDisplay;
 
     ctx.fillStyle = cols.bg;
-    ctx.fillRect(padX - 10, padTop, canvas.width - 2 * padX + 20, canvas.height - padTop - padBottom);
+    ctx.fillRect(padX - Math.floor(cw * 0.025), padTop, cw - 2 * padX + Math.floor(cw * 0.05), ch - padTop - padBottom);
     ctx.strokeStyle = cols.fret;
-    ctx.lineWidth = 4;
+    ctx.lineWidth = Math.max(1, ch * 0.011);
     for (let i = 0; i <= numFretsDisplay; i++) {
       let y = padTop + i * fretSpacing;
       ctx.beginPath();
       ctx.moveTo(padX, y);
-      ctx.lineTo(canvas.width - padX, y);
+      ctx.lineTo(cw - padX, y);
       ctx.stroke();
       if (i > 0) {
         ctx.fillStyle = cols.fretNum;
-        ctx.font = "bold 22px sans-serif";
+        ctx.font = `bold ${Math.round(ch * 0.12)}px sans-serif`;
         ctx.textAlign = "right";
         ctx.textBaseline = "middle";
-        ctx.fillText(minFretDisplay + i - 1, padX - 12, y - fretSpacing / 2);
+        ctx.fillText(minFretDisplay + i - 1, padX - Math.floor(cw * 0.08), y - fretSpacing / 2);
       }
     }
 
     if (minFretDisplay === 1) {
       ctx.strokeStyle = cols.nut;
-      ctx.lineWidth = 8;
+      ctx.lineWidth = Math.max(1, ch * 0.023);
       ctx.beginPath();
       ctx.moveTo(padX, padTop);
-      ctx.lineTo(canvas.width - padX, padTop);
+      ctx.lineTo(cw - padX, padTop);
       ctx.stroke();
     }
 
@@ -775,12 +811,12 @@ class ChordGenerator {
       ctx.lineWidth = st;
       ctx.beginPath();
       ctx.moveTo(x, padTop);
-      ctx.lineTo(x, canvas.height - padBottom);
+      ctx.lineTo(x, ch - padBottom);
       ctx.stroke();
       ctx.fillStyle = cols.stringText;
-      ctx.font = "bold 12px sans-serif";
+      ctx.font = `bold ${Math.round(ch * 0.064)}px sans-serif`;
       ctx.textAlign = "center";
-      ctx.fillText(NOTE_NAMES[tuning[i] % 12], x, canvas.height - 15);
+      ctx.fillText(NOTE_NAMES[tuning[i] % 12], x, ch - Math.floor(ch * 0.08));
     }
 
     if (chordData.barre && chordData.barre.fret >= minFretDisplay) {
@@ -788,50 +824,54 @@ class ChordGenerator {
       let startX = padX + b.startString * stringSpacing;
       let endX = padX + b.endString * stringSpacing;
       let y = padTop + (b.fret - minFretDisplay) * fretSpacing + fretSpacing / 2;
+      const br = Math.round(ch * 0.063);
       ctx.fillStyle = cols.barre;
       ctx.beginPath();
-      ctx.moveTo(startX, y - 22);
-      ctx.lineTo(endX, y - 22);
-      ctx.arc(endX, y, 22, -Math.PI / 2, Math.PI / 2);
-      ctx.lineTo(startX, y + 22);
-      ctx.arc(startX, y, 22, Math.PI / 2, -Math.PI / 2);
+      ctx.moveTo(startX, y - br);
+      ctx.lineTo(endX, y - br);
+      ctx.arc(endX, y, br, -Math.PI / 2, Math.PI / 2);
+      ctx.lineTo(startX, y + br);
+      ctx.arc(startX, y, br, Math.PI / 2, -Math.PI / 2);
       ctx.fill();
     }
 
     for (let i = 0; i < numStrings; i++) {
       let fret = frets[i];
       let x = padX + i * stringSpacing;
+      const markerOff = Math.floor(ch * 0.069);
+      const mkr = Math.round(ch * 0.04);
+      const cr = Math.round(ch * 0.083);
       if (fret === -1) {
         ctx.strokeStyle = cols.marker;
-        ctx.lineWidth = 2.5;
+        ctx.lineWidth = Math.max(0.5, ch * 0.007);
         ctx.lineCap = "round";
         ctx.beginPath();
-        let y = padTop - 24;
-        ctx.moveTo(x - 7, y - 7);
-        ctx.lineTo(x + 7, y + 7);
-        ctx.moveTo(x + 7, y - 7);
-        ctx.lineTo(x - 7, y + 7);
+        let y = padTop - markerOff;
+        ctx.moveTo(x - mkr, y - mkr);
+        ctx.lineTo(x + mkr, y + mkr);
+        ctx.moveTo(x + mkr, y - mkr);
+        ctx.lineTo(x - mkr, y + mkr);
         ctx.stroke();
         ctx.lineCap = "butt";
       } else if (fret === 0) {
         ctx.strokeStyle = cols.marker;
-        ctx.lineWidth = 2.5;
+        ctx.lineWidth = Math.max(0.5, ch * 0.007);
         ctx.beginPath();
-        ctx.arc(x, padTop - 24, 7, 0, Math.PI * 2);
+        ctx.arc(x, padTop - markerOff, mkr, 0, Math.PI * 2);
         ctx.stroke();
       } else if (fret >= minFretDisplay) {
         let y = padTop + (fret - minFretDisplay) * fretSpacing + fretSpacing / 2;
         ctx.fillStyle = cols.marker;
         ctx.beginPath();
         if (chordData.actualNotes[i] === rootNote) {
-          if (ctx.roundRect) ctx.roundRect(x - 22, y - 22, 44, 44, 8);
-          else ctx.rect(x - 22, y - 22, 44, 44);
-        } else ctx.arc(x, y, 22, 0, Math.PI * 2);
+          if (ctx.roundRect) ctx.roundRect(x - cr, y - cr, cr * 2, cr * 2, Math.round(ch * 0.023));
+          else ctx.rect(x - cr, y - cr, cr * 2, cr * 2);
+        } else ctx.arc(x, y, cr, 0, Math.PI * 2);
         ctx.fill();
 
         if (chordData.fingering[i] > 0) {
           ctx.fillStyle = cols.markerText;
-          ctx.font = "bold 18px sans-serif";
+          ctx.font = `bold ${Math.round(ch * 0.15)}px sans-serif`;
           ctx.textAlign = "center";
           ctx.textBaseline = "middle";
           ctx.fillText(chordData.fingering[i], x, y + 2);
@@ -839,9 +879,9 @@ class ChordGenerator {
       }
       if (fret > -1) {
         ctx.fillStyle = cols.noteText;
-        ctx.font = "bold 14px sans-serif";
+        ctx.font = `bold ${Math.round(ch * 0.04)}px sans-serif`;
         ctx.textAlign = "center";
-        ctx.fillText(this.getLabel(chordData.actualNotes[i], rootNote, displayMode), x, canvas.height - 20);
+        ctx.fillText(this.getLabel(chordData.actualNotes[i], rootNote, displayMode), x, ch - Math.floor(ch * 0.15));
       }
     }
   }

@@ -770,32 +770,44 @@
       const container = document.createElement("div");
       asideEl.appendChild(container);
 
-      const chordSize = chordsLayout === "horizontal" ? 55 : 80;
+      const chordSize = chordsLayout === "horizontal" ? 45 : 80;
+      let canvasMaxHeight = 0;
+      if (chordsLayout === "horizontal") {
+        canvasMaxHeight = Math.floor(window.innerHeight * 0.2) - 24;
+        if (rType === "piano") canvasMaxHeight = Math.floor(canvasMaxHeight * 0.6);
+      }
 
       new ChordGenerator(container, chordString, {
         tuning: tuningToUse,
         renderType: rType,
         size: chordSize,
         displayMode: "notes",
+        canvasMaxHeight: canvasMaxHeight,
       });
 
       if (chordsLayout === "horizontal") {
+        container.style.cssText = "display:flex; flex-direction:row; align-items:stretch; overflow:hidden;";
         const titleDiv = container.querySelector("div");
         if (titleDiv) {
-          titleDiv.style.cssText = "flex-shrink:0; font-size:10px; padding:4px 10px; background:rgba(255,255,255,0.1); border-radius:12px; margin:0; white-space:nowrap; align-self:center;";
+          titleDiv.style.cssText =
+            "writing-mode:vertical-rl; flex-shrink:0; width:24px; font-size:9px; padding:4px 2px; background:rgba(255,255,255,0.1); border-radius:10px; margin:2px; white-space:nowrap; display:flex; align-items:center; justify-content:center;";
         }
         const gridDiv = container.querySelector("div:nth-child(2)");
         if (gridDiv) {
+          const isStaffOrPiano = rType === "piano" || rType === "staff";
+          gridDiv.style.flex = "1";
           gridDiv.style.display = "flex";
           gridDiv.style.flexDirection = "row";
-          gridDiv.style.flexWrap = "nowrap";
+          gridDiv.style.flexWrap = isStaffOrPiano ? "wrap" : "nowrap";
           gridDiv.style.overflowX = "auto";
-          gridDiv.style.gap = "10px";
+          gridDiv.style.overflowY = isStaffOrPiano ? "auto" : "hidden";
+          gridDiv.style.gap = "6px";
           gridDiv.style.alignItems = "center";
-          gridDiv.style.paddingBottom = "4px";
+          gridDiv.style.alignContent = isStaffOrPiano ? "center" : "";
+          gridDiv.style.padding = "2px 4px";
           gridDiv.style.maxHeight = "100%";
           gridDiv.querySelectorAll("canvas").forEach((canvas) => {
-            canvas.style.height = "calc(25vh - 60px)";
+            canvas.style.maxHeight = "100%";
             canvas.style.width = "auto";
           });
           gridDiv.querySelectorAll("*").forEach((el) => {
@@ -881,7 +893,7 @@
                 height: 100vh !important;
                 background: var(--tv-bg-alt) !important; 
                 z-index: 999998 !important; 
-                padding: 20px !important; 
+                padding: 0px !important; 
                 box-sizing: border-box !important; 
                 border-left: 1.5px solid #444 !important; 
                 overflow-y: auto !important; 
@@ -977,20 +989,20 @@
             .ug-tv-show-cursor { cursor: default !important; }
 
             body.ug-tv-chords-horizontal .ug-tv-title { width: 100vw !important; }
-            body.ug-tv-chords-horizontal .ug-tv-tab { width: 100vw !important; height: calc(100vh - 48px - 25vh) !important; }
+            body.ug-tv-chords-horizontal .ug-tv-tab { width: 100vw !important; top: calc(48px + 25vh) !important; height: calc(100vh - 48px - 25vh) !important; }
             body.ug-tv-chords-horizontal #ug-tv-custom-chord-panel {
-                top: auto !important;
-                bottom: 0 !important;
+                top: 48px !important;
+                bottom: auto !important;
                 left: 0 !important;
                 right: auto !important;
                 width: 100vw !important;
                 height: 25vh !important;
                 border-left: none !important;
-                border-top: 1.5px solid #444 !important;
-                overflow-y: hidden !important;
-                overflow-x: auto !important;
+                border-bottom: 1.5px solid #444 !important;
+                border-top: none !important;
+                overflow: hidden !important;
             }
-            body.ug-tv-chords-horizontal .ug-tv-indicator { bottom: calc(25vh + 5px) !important; }
+            body.ug-tv-chords-horizontal .ug-tv-indicator { bottom: 5px !important; }
 
             #ug-autofit-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.6); z-index: 99999999; display: flex; flex-direction: column; justify-content: center; align-items: center; }
             .ug-autofit-spinner { border: 4px solid rgba(255,255,255,0.1); border-top: 4px solid ${UG_YELLOW}; border-radius: 50%; width: 50px; height: 50px; animation: ug-tv-spin 1s linear infinite; }
@@ -1068,7 +1080,11 @@
     document.body.appendChild(autoFitOverlay);
 
     document.getElementById("ug-btn-theme").innerText = isDark ? "☀️ Clair" : "🌙 Sombre";
-    document.getElementById("ug-btn-aside").innerText = !isAsideVisible ? "Accords OFF" : chordsLayout === "horizontal" ? "Accords \u2014" : "Accords |";
+    document.getElementById("ug-btn-aside").innerText = !isAsideVisible
+      ? "Accords OFF"
+      : chordsLayout === "horizontal"
+        ? "Accords \u2014"
+        : "Accords |";
 
     let hideTimeout;
     let isMenuFocused = false;
@@ -1139,8 +1155,9 @@
           if (e.key === "ArrowRight" && preEl) preEl.scrollBy({ left: scrollTab });
           if (e.key === "ArrowLeft" && preEl) preEl.scrollBy({ left: -scrollTab });
           if (chordsLayout === "horizontal" && asideEl) {
-            if (e.key === "ArrowDown") asideEl.scrollBy({ left: scrollAside });
-            if (e.key === "ArrowUp") asideEl.scrollBy({ left: -scrollAside });
+            const scrollEl = asideEl.querySelector("div:nth-child(2)") || asideEl;
+            if (e.key === "ArrowDown") scrollEl.scrollBy({ left: scrollAside });
+            if (e.key === "ArrowUp") scrollEl.scrollBy({ left: -scrollAside });
           } else if (asideEl) {
             if (e.key === "ArrowDown") asideEl.scrollBy({ top: scrollAside });
             if (e.key === "ArrowUp") asideEl.scrollBy({ top: -scrollAside });
