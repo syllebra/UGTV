@@ -677,7 +677,9 @@
     document.body.appendChild(asideEl);
 
     const tabKey = "ug_tv_prefs_" + window.location.pathname;
-    let prefs = JSON.parse(localStorage.getItem(tabKey)) || {
+    const existingData = localStorage.getItem(tabKey);
+    const hadExistingPrefs = !!existingData;
+    let prefs = JSON.parse(existingData) || {
       font: 18,
       cols: 3,
       aside: true,
@@ -1254,7 +1256,7 @@
 
       setTimeout(() => updateCustomChords(prefs.inst), 500);
 
-      setTimeout(autoFit, 400);
+      if (!hadExistingPrefs) setTimeout(autoFit, 400);
     }
 
     launcher.addEventListener("click", (e) => {
