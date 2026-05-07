@@ -18,7 +18,7 @@
   // Clés de stockage
   const GLOBAL_TV_KEY = "ug_tv_global_state";
   const LOADING_TAB_NAME_KEY = "ug_tv_loading_tab_name";
-  let isGlobalTVModeOn = localStorage.getItem(GLOBAL_TV_KEY) === "true";
+  let isGlobalTVModeOn = true; //localStorage.getItem(GLOBAL_TV_KEY) === "true";
 
   // =========================================================
   // GESTION DU LOADER FULLSCREEN PERSONNALISÉ
@@ -790,7 +790,7 @@
         const titleDiv = container.querySelector("div");
         if (titleDiv) {
           titleDiv.style.cssText =
-            "writing-mode:vertical-rl; flex-shrink:0; width:24px; font-size:9px; padding:4px 2px; background:rgba(255,255,255,0.1); border-radius:10px; margin:2px; white-space:nowrap; display:flex; align-items:center; justify-content:center;";
+            "writing-mode:vertical-rl; flex-shrink:0; width:24px; font-size:9px; padding:0px; background:rgba(255,255,255,0.1); border-radius:10px; margin:2px; white-space:nowrap; display:flex; align-items:center; justify-content:center;";
         }
         const gridDiv = container.querySelector("div:nth-child(2)");
         if (gridDiv) {
