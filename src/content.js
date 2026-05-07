@@ -1214,7 +1214,7 @@
           if (currentFont > 3) {
             currentFont -= 0.5;
             applyStyles();
-          } else if (currentFont > 0.5) {
+          } else if (currentFont > 0.1) {
             currentFont -= 0.1;
             applyStyles();
           } else {
